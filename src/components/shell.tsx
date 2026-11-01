@@ -74,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <span>
             Sheet<span className="brand-light">Ops</span>
-            <small>OPERATIONS WORKSPACE</small>
+            <small>KHÔNG GIAN VẬN HÀNH</small>
           </span>
         </Link>
         <div className="workspace-chip">
@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-bottom">
           <div className="demo-note">
             <span className="eyebrow">
-              <span className="live-dot" /> PHASE 01 · PROTOTYPE
+              <span className="live-dot" /> GIAI ĐOẠN 01 · BẢN MẪU
             </span>
             <strong>Sẵn sàng để khám phá</strong>
             <p>
@@ -148,7 +148,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="live-dot" /> Dữ liệu demo
             </span>
             <details className="user-menu">
-              <summary>
+              <summary aria-label={`Tài khoản demo: ${roleLabels[user.role]}`}>
                 <span className="avatar">{user.full_name.slice(0, 1)}</span>
                 <span className="user-label">
                   {user.full_name.replace(" (giả lập)", "")}
@@ -259,7 +259,7 @@ export function LoginPage() {
             </span>
           </div>
         </div>
-        <small>Phase 1 · Interactive prototype · 2026</small>
+        <small>Giai đoạn 1 · Bản mẫu tương tác · 2026</small>
       </div>
       <section className="login-form">
         <span className="section-kicker">CHÀO MỪNG ĐẾN SHEETOPS</span>

@@ -257,6 +257,8 @@ hr {
   z-index: 30;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 30px 18px 18px;
 }
 .brand {
@@ -687,6 +689,8 @@ hr {
   color: #287250;
   font-size: clamp(17px, 1.7vw, 28px);
   margin-top: 16px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .kpi-featured .kpi-icon {
   color: #4c8b60;

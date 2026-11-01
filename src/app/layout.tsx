@@ -19,7 +19,13 @@ export default function RootLayout({
       <body>
         <DemoProvider>
           <AppShell>{children}</AppShell>
-          <Toaster richColors position="bottom-right" closeButton />
+          <Toaster
+            richColors
+            position="bottom-right"
+            closeButton
+            toastOptions={{ closeButtonAriaLabel: "Đóng thông báo" }}
+            containerAriaLabel="Thông báo"
+          />
         </DemoProvider>
       </body>
     </html>
