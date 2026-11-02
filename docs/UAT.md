@@ -27,3 +27,22 @@ Use fictional data only. Start with `npm ci`, `npm run dev`, and open `http://lo
 - Visit an unknown path to verify the 404 view. Error/loading components are available through the App Router; no fake network loading or errors are invented for local synchronous operations.
 
 Browser results actually observed for this delivery are recorded in `VERIFICATION.md`. This walkthrough also covers repeatable checks beyond the observed sample; it is not a claim that every recovery path was manually exercised.
+
+## Phase 2 real-service UAT
+
+The earlier sections are historical Phase 1 demo steps; role switching, local persistence and reset no longer exist in the application. For Phase 2 use separate real Auth accounts provisioned by Admin, with SMTP/redirect URLs configured and an initially empty development Orders table.
+
+1. Bootstrap the intended Admin using `DATABASE.md`, then sign in with email/password.
+2. Verify anonymous APIs return 401 and admin pages return actual 403 for Editor/Viewer.
+3. Check Sheets connection; populate Source_Orders privately with controlled development rows and canonical headers. Preview all rows, fix every error, and confirm only into an empty database. Test a changed-source hash and a malformed batch; neither may partially import.
+4. Verify imported Orders and SQL KPI/report totals. Use exact decimal-string values including BIGINT boundaries in controlled tests. Search, sort amounts numerically, paginate and combine date/status filters.
+5. Sign in as Editor, create a fictional order, edit it to completed, reload and verify dashboard/report/CSV. Soft-delete through confirmation and verify all normal outputs exclude it. The code remains reserved.
+6. Sign in as Viewer, verify read-only UI and directly call mutation/admin APIs to confirm 403. Attempt self-profile elevation and metadata forgery; database RLS must reject access.
+7. Admin changes another user's role/active flag. An existing session must lose revoked access on its next request. Self-change/last-active-Admin safeguards remain.
+8. Send an invitation only to an authorized recipient. Verify actual inbox receipt, callback and password setup before claiming delivery success.
+9. Export a snapshot, read back its full contents and compare exact values. Repeat export: no appended duplicates. Change/delete an order and export again; previous deleted rows disappear. Inspect persisted run and audit history.
+10. In a controlled development environment, exercise a Google failure before publish, verify business data and previous output remain, then retry. Treat an ambiguous post-publish timeout separately from a preparation failure.
+11. Invoke cron with missing/invalid authorization (401), then through a trusted client with the environment secret. Repeat the same business-date invocation; verify run reuse. Independently observe and record the first scheduled production execution.
+12. Verify existing Vercel project deployed the intended main SHA, required environment variables exist, production login/redirects work and cron is registered. Do not disable deployment protection for tests.
+
+Record every final acceptance step as PASS/FAIL/BLOCKED in `VERIFICATION.md`. The disposable cloud/E2E scripts must not be run on real data and are not a substitute for owner SMTP, source-data and scheduled-production acceptance.

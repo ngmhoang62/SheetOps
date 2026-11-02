@@ -1,87 +1,68 @@
 # SheetOps
 
-An internal order operations and analytics workspace. **Phase 1 is complete as an interactive prototype**: Vietnamese UI, deterministic fictional data, browser-local persistence, and simulated Admin/Editor/Viewer roles. The full product specification is preserved in [docs/PRD.md](docs/PRD.md).
+Internal order operations and analytics workspace with Vietnamese UI, Next.js App Router, Supabase PostgreSQL/Auth, server-enforced roles, and Google Sheets snapshot synchronization.
 
-## Run locally
+Phase 2 implementation replaces Phase 1 role switching and localStorage business data. Historical prototype documentation is preserved in [docs/PHASE_1.md](docs/PHASE_1.md), Git history and earlier verification sections. The authoritative [PRD](docs/PRD.md) is unchanged. Current verification and external setup gates are in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
-Prerequisites: Node.js 22.12+ (Node 24 LTS recommended), npm 10+, and a modern browser. No cloud account, credentials, database, or `.env.local` is needed.
+## Local setup
 
-```powershell
-npm ci
-npm run dev
-```
+Requirements: Node.js 22.12+ (24 LTS recommended), npm 10+, and the authorized Singapore Supabase project `ubaxgkqkfcrqbyshkidz`.
 
-Open [localhost:3000](http://localhost:3000). Choose **Quản trị viên**, **Biên tập viên**, or **Người xem** on the demo login screen. The top-right user menu switches between active demo profiles. Sign out there to return to login.
+1. Install dependencies with `npm ci`.
+2. Copy `.env.example` to ignored `.env.local` and configure values privately. Never paste secrets into chat or commit them.
+3. Apply committed SQL migrations in order to the intended project after inspecting its existing schema. Do not reset a populated database.
+4. Create and bootstrap the first Admin using [docs/DATABASE.md](docs/DATABASE.md). No public signup or automatic Admin role exists.
+5. Run `npm run dev` and open [localhost:3000](http://localhost:3000). Sign in with the provisioned account.
 
-For a production-mode local preview:
+There is no credential-free demo login in the current production flow. Existing Phase 1 localStorage records are neither imported nor trusted. Seed preview remains an explicit offline fixture command and never writes cloud data.
 
-```powershell
-npm run build
-npm start
-```
+## Commands
 
-## Implemented
+| Command                                   | Purpose                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| `npm ci`                                  | Reproduce pinned dependencies                                        |
+| `npm run dev`                             | Local development server                                             |
+| `npm run lint`                            | ESLint, zero warnings                                                |
+| `npm run typecheck`                       | Generate Next route types and run strict TypeScript                  |
+| `npm test`                                | Unit tests including retained Phase 1 fixtures and Phase 2 contracts |
+| `npm run build` / `npm start`             | Production build / local production server                           |
+| `npm run format:check` / `npm run format` | Check / apply formatting                                             |
+| `npm run admin:bootstrap`                 | Trusted terminal first-Admin bootstrap; requires existing Auth UUID  |
+| `npm run seed:preview`                    | Print deterministic 300-order JSON; no database writes               |
+| `npm run test:cloud`                      | Opt-in disposable Auth/PostgreSQL/RLS checks                         |
+| `npm run test:e2e`                        | Opt-in browser/API/real Sheets checks against a local server         |
 
-- Responsive sidebar/topbar, mobile navigation, demo login/logout, role menu, loading/error/empty/forbidden states.
-- Dashboard with total/completed orders, completed-only revenue, completion rate, monthly revenue, status distribution, ten recent orders, and inclusive date/status filters.
-- TanStack Table v9 order table with search, sorting, date/status filters, pagination (20/30/50 rows), create/edit/detail dialogs, field-level Zod validation, duplicate-code rejection, soft-delete confirmation, and Vietnamese toasts.
-- Reports use the same data and calculation functions, with monthly/status totals and filtered, quoted, UTF-8 BOM CSV download. CSV text that could become a spreadsheet formula is escaped.
-- Mock user creation, role changes, enable/disable, self-change and last-admin safeguards. No invitations are delivered.
-- Sync Center explicitly shows **Chưa cấu hình** (Not Configured), no runs, and disabled real integration controls.
-- Demo organization setting, confirmed seed reset, and a browser-local activity log of up to 100 mutation events.
-- Exactly 300 deterministic orders across 12 months of 2026 (25 per month), stable UUIDs and unique codes; fictional names only. The full-year default intentionally includes future sample dates.
+Cloud/E2E commands require `RUN_CLOUD_TESTS=1`, authorized credentials, and an empty development database. E2E also requires blank/header-only application-managed sheet tabs and an installed Chrome browser. It defaults to an already running production server at `http://127.0.0.1:3001`; set `E2E_BASE_URL` only to another localhost URL. Test credentials are generated in memory and never printed. Both managed tabs are restored and read back before exact-ID cloud fixture cleanup; Source_Orders is untouched. Do not run these scripts on real business data.
 
-## Commands and checks
+## Implementation
 
-| Command                | Purpose                                                |
-| ---------------------- | ------------------------------------------------------ |
-| `npm run dev`          | Next.js development server                             |
-| `npm run lint`         | ESLint with zero warnings allowed                      |
-| `npm run typecheck`    | Strict TypeScript check                                |
-| `npm test`             | Vitest business-rule suite                             |
-| `npm run build`        | Optimized production build                             |
-| `npm start`            | Serve the production build                             |
-| `npm run format:check` | Prettier check                                         |
-| `npm run format`       | Format source and documentation                        |
-| `npm run seed:preview` | Print deterministic seed JSON; never writes a database |
+- Real Supabase password authentication, cookie sessions and refresh, active profile checks, protected page routes and APIs. Admin/Editor/Viewer permissions come from PostgreSQL and RLS.
+- Existing responsive readable UI, server-paginated/searchable/sortable order table, validated create/edit/soft delete, confirmation dialogs and toast feedback.
+- PostgreSQL dashboard/report aggregates, exact BIGINT decimal-string amounts, completed-only revenue, active-row exclusion, filtered formula-safe UTF-8 CSV.
+- Admin invitations, controlled role/active-state changes, persistent settings and transactional audit logs. Email delivery requires SMTP verification.
+- Google Sheets connection check, strict preview/confirmed initial import, verified RAW staging export, atomic publish, real run history, database lock and idempotency.
+- Shared manual/cron export, exact bearer-protected endpoint, daily `0 16 * * *` Vercel schedule (23:00 Asia/Ho_Chi_Minh).
 
-Dependencies are pinned with a committed npm lockfile. TypeScript 6.0.3 fits the current `typescript-eslint` peer range; ESLint 9.39.5 fits Next.js's current React/import/accessibility plugin peer ranges. This ESLint major is upstream end-of-life; update the lint stack together when those plugins support ESLint 10. See [verification](docs/VERIFICATION.md) for the checked versions, results, and dependency-audit limitations.
-
-## Structure
+## Source structure
 
 ```text
-src/
-  app/                    App Router routes, layout, recovery states, theme
-  components/
-    ui/                   shadcn/ui-style Button and Radix Dialog primitives
-    demo-provider.tsx     shared client state, mock session, persistence, mutations
-    shell.tsx             navigation, permission guard, login, user menu
-    analytics-view.tsx    dashboard/report charts, summaries, CSV download
-    orders-view.tsx       TanStack table and order editor
-    admin-view.tsx        users, unconfigured sync, settings/activity log
-    shared.tsx            filters, headings, status badges, confirmations
-  lib/
-    domain.ts             schemas, permissions, order/user mutation rules
-    seed.ts               reusable deterministic order/user fixtures
-    analytics.ts          filters, aggregates, formatting, CSV serialization
-    utils.ts              class name utility
-scripts/seed.ts           JSON seed preview
-tests/domain.test.ts      domain and report correctness tests
-docs/                    PRD, plan, integration roadmap, verification and UAT
+src/app/                 pages, API route handlers, Auth callback/acceptance
+src/proxy.ts             cookie refresh and server page access checks
+src/components/          existing feature views and workspace session context
+src/lib/contracts.ts     production schemas and exact-integer/CSV helpers
+src/lib/supabase/        browser, user-scoped server and privileged clients
+src/lib/server/          authorization, query and Sheets service boundaries
+src/lib/sheets-format.ts strict source parsing and stable snapshot hashing
+supabase/migrations/     versioned schema, RLS, guarded RPCs and transactions
+scripts/                 offline seed, trusted bootstrap, opt-in cloud/E2E tests
+tests/                   pure domain, money, import/export and security helper tests
+docs/                    architecture, database/API/setup/deployment and evidence
 ```
 
-## Prototype boundaries
+## Configuration and remaining gates
 
-This is **not the functional MVP described by Phase 2**. No real authentication, server authorization, API routes, database, RLS, SQL migrations, mail delivery, sync, cron, audit service, or deployment has been implemented. Admin-route restrictions are client-side UI demonstrations and do not return server HTTP 403. Never put real business or personal data into this prototype.
+[.env.example](.env.example) lists public Supabase URL/key and server-only Supabase secret, service-account identity/private key, spreadsheet ID, cron secret, business timezone and canonical `APP_ORIGIN`. Do not prefix privileged credentials with `NEXT_PUBLIC_`. Local values are not automatically copied to Vercel.
 
-Orders, users, settings, and a limited activity history live in `localStorage` under `sheetops-demo-v1`; the demo profile selection uses `sheetops-session-v1`. Changes are local to one browser origin, can be altered/cleared by its user, and are not shared across users, devices, tabs in real time, or ports. Storage failures display a warning and allow in-memory use; invalid snapshots are not silently overwritten. An Admin can use **Cài đặt → Đặt lại bản demo** to recover the seed and sign out.
+The target database started empty, and Source_Orders initially contained only valid headers. The owner must supply the first permanent Admin account and source development rows to finish the real initial-import acceptance flow. Production requires its own Google/cron environment configuration, Supabase redirect URLs, SMTP/invitation delivery check and verification of an actual scheduled run. See [deployment instructions](docs/DEPLOYMENT.md).
 
-Pagination/filtering/calculation run on the client. Soft-deleted codes remain reserved. Demo data is capped at 5,000 orders, 100 profiles, and 100 activity events. Amounts use safe integer JavaScript numbers, capped at 1,000,000,000,000 VND per order; that bound keeps aggregates exact within the demo limit. Phase 2 must preserve PostgreSQL BIGINT precision across JSON, preferably with string serialization.
-
-Settings do not change credentials, sync configuration, or production behavior. The activity log is not tamper-proof. Reset permanently removes only demo changes on this browser. No automated browser test runner is included; Vitest tests are repeatable, and the browser scenario is documented in [docs/UAT.md](docs/UAT.md).
-
-## Phase 2 prerequisites
-
-Read [docs/PHASE_2.md](docs/PHASE_2.md) before beginning. It covers authentication, migrations/RLS, server endpoints, safe Google Sheets staging export, scheduling, credentials, and deployment gates. Configure placeholder names from [.env.example](.env.example) in an ignored `.env.local` for local development and the host's encrypted environment configuration for deployments. Only the Supabase public URL and publishable key may reach the browser. Never prefix server credentials with `NEXT_PUBLIC_` or commit them.
-
-No external infrastructure was provisioned. Phase 2 requires a separate authorized task.
+Operational limits and unverified cases are explicit in [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). Do not describe a successful build or mocked test as proof that all cloud workflows are complete. Phase 3 production hardening is outside this task.
