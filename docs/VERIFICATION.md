@@ -117,3 +117,7 @@ This is not COMPLETE — VERIFIED END-TO-END. Owner setup, inbox delivery, popul
 Final fixture inspection after successful tests: Auth users = 0, profiles = 0, orders = 0, sync runs = 0 and private mutation-quota fixtures = 0. Both managed tabs matched their pre-test content after E2E cleanup; Source_Orders was unchanged. [Phase 2 browser screenshot](screenshots/phase2-dashboard.png) shows an authenticated temporary test Admin after deleting its fixture order; the account was then removed.
 
 Secret review compared actual local server-secret values against all version-controlled/unignored candidate files and built client chunks: zero matches. `.env.local` remained ignored. Runtime browser artifacts and Supabase CLI cache are ignored. Production-only environment values were inspected as metadata; no private credentials were copied into documentation, messages or commit content.
+
+### Post-push deployment evidence
+
+Vercel deployment `dpl_BLEr21ud2Aw1bvUvpKKjKffv6LsV` reached **READY** for production branch main at application checkpoint `edbfcc16b937c6c012d0f50f4b08a6d3fdddf4c3`. [Deployment inspection](https://vercel.com/nguyen-minh-hoang-s-team/sheetops/BLEr21ud2Aw1bvUvpKKjKffv6LsV). This closes the cloud build/deploy check for that checkpoint, not the owner-configuration, populated-source import, inbox-delivery or scheduled-runtime gates above. Subsequent documentation-only commits do not change application behavior.
