@@ -1,5 +1,17 @@
 "use client";
-import { useMemo, useState } from "react";
+import { exactMoney as money, type LiveOrder } from "@/lib/contracts";
+import { statusLabels, type Status } from "@/lib/domain";
+import { useResource } from "./resource";
+type AnalyticsSummary = {
+  total: number;
+  completed: number;
+  revenue: string;
+  rate: number;
+  monthly: { month: string; count: number; revenue: string }[];
+  distribution: { status: Status; value: number; amount: string }[];
+  recent: LiveOrder[];
+};
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowDownToLine,
@@ -22,19 +34,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { toast } from "sonner";
-import {
-  defaultFilters,
-  filterOrders,
-  formatDate,
-  money,
-  monthlyRevenue,
-  ordersCSV,
-  shortMoney,
-  statusSummary,
-  summarize,
-} from "@/lib/analytics";
-import { useDemo } from "./demo-provider";
+
+import { defaultFilters, formatDate, shortMoney } from "@/lib/analytics";
+import { useWorkspace } from "./workspace-provider";
 import { EmptyState, FilterBar, PageHeading, StatusBadge } from "./shared";
 import { Button } from "./ui/button";
 
@@ -44,34 +46,40 @@ const colors = {
   cancelled: "#c4c9d1",
 };
 export function AnalyticsView({ report = false }: { report?: boolean }) {
-  const { data } = useDemo();
+  const { revision } = useWorkspace();
   const [filters, setFilters] = useState(defaultFilters);
-  const orders = useMemo(
-    () => filterOrders(data.orders, filters),
-    [data.orders, filters],
+  const resource = useResource<AnalyticsSummary>(
+    "/api/dashboard/summary?" +
+      new URLSearchParams({ ...filters, search: filters.search ?? "" }),
+    revision,
   );
-  const stats = summarize(orders);
-  const monthly = monthlyRevenue(orders);
-  const distribution = statusSummary(orders);
-  const recent = [...orders]
-    .sort(
-      (a, b) =>
-        b.order_date.localeCompare(a.order_date) ||
-        b.created_at.localeCompare(a.created_at) ||
-        b.order_code.localeCompare(a.order_code),
-    )
-    .slice(0, 10);
+  const stats = resource.data ?? {
+    total: 0,
+    completed: 0,
+    revenue: "0",
+    rate: 0,
+    monthly: [],
+    distribution: [],
+    recent: [],
+  };
+  const monthly = stats.monthly.map((m) => ({
+    ...m,
+    label: m.month.slice(5) + "/" + m.month.slice(0, 4),
+    chartValue: Number(m.revenue),
+  }));
+  const distribution = stats.distribution.map((s) => ({
+    ...s,
+    name: statusLabels[s.status],
+  }));
+  const recent = stats.recent;
+  const orders = { length: stats.total };
   function exportCSV() {
-    const blob = new Blob([ordersCSV(orders)], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `sheetops-demo-${filters.from || "all"}-${filters.to || "all"}.csv`;
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast.success(`Đã xuất ${orders.length} đơn hàng demo theo bộ lọc.`);
+    const link = document.createElement("a");
+    link.href =
+      "/api/reports/export?" +
+      new URLSearchParams({ ...filters, search: filters.search ?? "" });
+    link.download = "sheetops-orders.csv";
+    link.click();
   }
   const cards = [
     {
@@ -126,6 +134,16 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
         )}
       </PageHeading>
       <FilterBar value={filters} onChange={setFilters} />
+      {resource.loading && (
+        <div role="status" className="notice">
+          Đang tải thống kê…
+        </div>
+      )}
+      {resource.error && (
+        <div role="alert" className="notice notice-error">
+          {resource.error}
+        </div>
+      )}
       <div className="kpi-grid">
         {cards.map((card) => (
           <section className={`kpi-card ${card.className}`} key={card.label}>
@@ -185,7 +203,10 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
                   />
                   <Tooltip
                     cursor={{ fill: "#f0f5f2" }}
-                    formatter={(value) => [money(Number(value)), "Doanh thu"]}
+                    formatter={(_value, _name, item) => [
+                      money(String(item.payload?.revenue ?? "0")),
+                      "Doanh thu",
+                    ]}
                     contentStyle={{
                       borderRadius: 12,
                       border: "1px solid #e5eae6",
@@ -193,7 +214,7 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
                     }}
                   />
                   <Bar
-                    dataKey="revenue"
+                    dataKey="chartValue"
                     fill="#338266"
                     radius={[5, 5, 0, 0]}
                     maxBarSize={35}
@@ -362,7 +383,10 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
                     <td className="text-right">{stats.total}</td>
                     <td className="text-right">
                       {money(
-                        distribution.reduce((sum, s) => sum + s.amount, 0),
+                        distribution.reduce(
+                          (sum, s) => sum + BigInt(s.amount),
+                          0n,
+                        ),
                       )}
                     </td>
                   </tr>
@@ -429,8 +453,7 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
         </section>
       )}
       <p className="data-note">
-        Dữ liệu minh họa năm 2026 · Cùng nguồn dữ liệu với Đơn hàng · Các thay
-        đổi được cập nhật ngay
+        Dữ liệu PostgreSQL · Doanh thu chỉ tính đơn hoàn thành, chưa bị xóa
       </p>
     </>
   );

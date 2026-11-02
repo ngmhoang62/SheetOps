@@ -1,4 +1,11 @@
 "use client";
+import {
+  liveOrderInput,
+  exactMoney,
+  type LiveOrder as Order,
+} from "@/lib/contracts";
+import { api, useResource } from "./resource";
+
 import { useMemo, useState } from "react";
 import {
   createPaginatedRowModel,
@@ -28,23 +35,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  canWrite,
-  orderInputSchema,
-  statuses,
-  statusLabels,
-  validateOrder,
-  type Order,
-  type OrderInput,
-} from "@/lib/domain";
-import {
-  defaultFilters,
-  filterOrders,
-  formatDate,
-  money,
-  type Filters,
-} from "@/lib/analytics";
-import { useDemo } from "./demo-provider";
+import { canWrite, statuses, statusLabels } from "@/lib/domain";
+import { defaultFilters, formatDate, type Filters } from "@/lib/analytics";
+import { useWorkspace } from "./workspace-provider";
 import {
   ConfirmDialog,
   EmptyState,
@@ -68,7 +61,7 @@ const features = tableFeatures({
   sortFns: { basic: sortFn_basic, text: sortFn_text },
 });
 export function OrdersView() {
-  const { data, user, deleteOrder } = useDemo();
+  const { user, revision, changed } = useWorkspace();
   const [filters, setFilters] = useState<Filters>({
     ...defaultFilters,
     search: "",
@@ -83,10 +76,20 @@ export function OrdersView() {
   const [editing, setEditing] = useState<Order | "new" | null>(null);
   const [deleting, setDeleting] = useState<Order | null>(null);
   const writable = !!user && canWrite(user.role);
-  const filtered = useMemo(
-    () => filterOrders(data.orders, filters),
-    [data.orders, filters],
+  const query = new URLSearchParams({
+    ...filters,
+    search: filters.search ?? "",
+    page: String(pagination.pageIndex + 1),
+    pageSize: String(pagination.pageSize),
+    sort: sorting[0]?.id ?? "order_date",
+    direction: sorting[0]?.desc ? "desc" : "asc",
+  });
+  const resource = useResource<{ orders: Order[]; total: number }>(
+    "/api/orders?" + query.toString(),
+    revision,
   );
+  const filtered = resource.data?.orders ?? [];
+  const total = resource.data?.total ?? 0;
   const columns = useMemo<ColumnDef<typeof features, Order>[]>(
     () => [
       {
@@ -135,7 +138,7 @@ export function OrdersView() {
         sortFn: "basic",
         cell: ({ row }) => (
           <span className="amount-cell">
-            {money(row.original.total_amount)}
+            {exactMoney(row.original.total_amount)}
           </span>
         ),
       },
@@ -174,6 +177,9 @@ export function OrdersView() {
     features,
     data: filtered,
     columns,
+    manualPagination: true,
+    manualSorting: true,
+    rowCount: total,
     state: { sorting, pagination },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
@@ -183,10 +189,11 @@ export function OrdersView() {
     setFilters(next);
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleting) return;
     try {
-      deleteOrder(deleting.id);
+      await api(`/api/orders/${deleting.id}`, { method: "DELETE" });
+      changed();
       toast.success(
         `Đã xóa mềm ${deleting.order_code}. Báo cáo đã được cập nhật.`,
       );
@@ -195,10 +202,7 @@ export function OrdersView() {
         ...p,
         pageIndex: Math.max(
           0,
-          Math.min(
-            p.pageIndex,
-            Math.ceil((filtered.length - 1) / p.pageSize) - 1,
-          ),
+          Math.min(p.pageIndex, Math.ceil((total - 1) / p.pageSize) - 1),
         ),
       }));
     } catch (error) {
@@ -222,16 +226,15 @@ export function OrdersView() {
       </PageHeading>
       {!writable && (
         <div className="notice">
-          Bạn đang ở chế độ chỉ xem. Chuyển vai trò trong menu người dùng để
-          trải nghiệm chỉnh sửa.
+          Bạn đang ở chế độ chỉ xem. Liên hệ quản trị viên nếu cần quyền chỉnh
+          sửa.
         </div>
       )}
       <section className="panel orders-panel">
         <div className="orders-toolbar">
           <div>
             <h2>
-              Danh sách đơn hàng{" "}
-              <span className="count-pill">{filtered.length}</span>
+              Danh sách đơn hàng <span className="count-pill">{total}</span>
             </h2>
           </div>
           <label className="search-field">
@@ -247,7 +250,15 @@ export function OrdersView() {
           </label>
         </div>
         <FilterBar value={filters} onChange={changeFilters} />
-        {filtered.length ? (
+        {resource.loading ? (
+          <div className="loading-state" role="status">
+            Đang tải đơn hàng…
+          </div>
+        ) : resource.error ? (
+          <div className="notice notice-error" role="alert">
+            {resource.error}
+          </div>
+        ) : total ? (
           <>
             <div className="table-scroll">
               <table className="orders-table">
@@ -306,9 +317,9 @@ export function OrdersView() {
                 Hiển thị {pagination.pageIndex * pagination.pageSize + 1}–
                 {Math.min(
                   (pagination.pageIndex + 1) * pagination.pageSize,
-                  filtered.length,
+                  total,
                 )}{" "}
-                / {filtered.length} đơn hàng
+                / {total} đơn hàng
               </span>
               <div>
                 <label>
@@ -379,7 +390,7 @@ export function OrdersView() {
         )}
       </section>
       <p className="data-note">
-        Dữ liệu mẫu · Xóa mềm: đơn đã xóa được loại khỏi danh sách, KPI và CSV.
+        Xóa mềm: đơn đã xóa được loại khỏi danh sách, KPI và CSV.
       </p>
       {editing && (
         <OrderEditor
@@ -397,7 +408,7 @@ export function OrdersView() {
           if (!open) setDeleting(null);
         }}
         title="Xóa mềm đơn hàng?"
-        description={`${deleting?.order_code ?? ""} sẽ biến mất khỏi danh sách, tổng quan và báo cáo. Bản ghi vẫn được giữ trong dữ liệu demo.`}
+        description={`${deleting?.order_code ?? ""} sẽ biến mất khỏi danh sách, tổng quan và báo cáo. Bản ghi vẫn được giữ trong cơ sở dữ liệu.`}
         onConfirm={confirmDelete}
         confirmLabel="Xóa đơn hàng"
         destructive
@@ -415,12 +426,12 @@ function OrderEditor({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data, user, saveOrder } = useDemo();
+  const { user, changed } = useWorkspace();
   const writable = !!user && canWrite(user.role);
   const [values, setValues] = useState({
     order_code:
       order?.order_code ??
-      `SO-2026-${String(data.orders.length + 1).padStart(4, "0")}`,
+      `SO-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
     customer_name: order?.customer_name ?? "",
     order_date:
       order?.order_date ??
@@ -451,12 +462,11 @@ function OrderEditor({
         {errors[key]}
       </span>
     ) : null;
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = orderInputSchema.safeParse({
+    const parsed = liveOrderInput.safeParse({
       ...values,
-      total_amount:
-        values.total_amount.trim() === "" ? NaN : Number(values.total_amount),
+      total_amount: values.total_amount.trim(),
     });
     if (!parsed.success) {
       setErrors(
@@ -469,20 +479,14 @@ function OrderEditor({
       );
       return;
     }
-    try {
-      validateOrder(parsed.data, data.orders, order?.id);
-    } catch (err) {
-      setErrors({
-        order_code: err instanceof Error ? err.message : "Mã đơn không hợp lệ.",
-      });
-      return;
-    }
     setSaving(true);
     try {
-      saveOrder(parsed.data as OrderInput, order?.id);
-      toast.success(
-        order ? "Đã cập nhật đơn hàng demo." : "Đã tạo đơn hàng demo.",
-      );
+      await api(order ? `/api/orders/${order.id}` : "/api/orders", {
+        method: order ? "PATCH" : "POST",
+        body: JSON.stringify(parsed.data),
+      });
+      changed();
+      toast.success(order ? "Đã cập nhật đơn hàng." : "Đã tạo đơn hàng.");
       onOpenChange(false);
     } catch (err) {
       setErrors({
@@ -495,7 +499,7 @@ function OrderEditor({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="order-dialog">
-        <span className="section-kicker">ĐƠN HÀNG DEMO</span>
+        <span className="section-kicker">THÔNG TIN ĐƠN HÀNG</span>
         <DialogTitle>
           {writable
             ? order
@@ -522,7 +526,7 @@ function OrderEditor({
               Tên khách hàng *
               <input
                 {...field("customer_name")}
-                placeholder="Nhập tên khách hàng giả lập"
+                placeholder="Nhập tên khách hàng"
                 maxLength={200}
               />
               {error("customer_name")}
@@ -533,7 +537,7 @@ function OrderEditor({
                 {...field("total_amount")}
                 type="number"
                 min="0"
-                max="1000000000000"
+                max="9223372036854775807"
                 step="1"
                 placeholder="0"
               />

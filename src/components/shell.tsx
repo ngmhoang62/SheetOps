@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   BarChart3,
-  Check,
   ChevronDown,
   CircleHelp,
   ClipboardList,
@@ -19,8 +19,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { canAccess, roleLabels, roles, type Role } from "@/lib/domain";
-import { useDemo } from "./demo-provider";
+import { canAccess, roleLabels } from "@/lib/domain";
+import { useWorkspace } from "./workspace-provider";
 import { Button } from "./ui/button";
 
 const navigation = [
@@ -40,14 +40,15 @@ export function LoadingState() {
   );
 }
 export function AppShell({ children }: { children: ReactNode }) {
-  const { data, user, ready, login, logout, storageError } = useDemo();
+  const { organization, user, ready, logout, error } = useWorkspace();
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    if (ready && !user && path !== "/login") router.replace("/login");
+    if (ready && !user && path !== "/login" && !path.startsWith("/auth/"))
+      router.replace("/login");
   }, [ready, user, path, router]);
-  if (path === "/login") return <>{children}</>;
+  if (path === "/login" || path.startsWith("/auth/")) return <>{children}</>;
   if (!ready || !user) return <LoadingState />;
   const page = navigation.find((item) => item.href === path);
   const permitted = canAccess(user.role, path);
@@ -80,8 +81,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="workspace-chip">
           <span className="workspace-avatar">S</span>
           <span>
-            <strong>{data.organization}</strong>
-            <small>Không gian demo</small>
+            <strong>{organization}</strong>
+            <small>Không gian nội bộ</small>
           </span>
           <ChevronDown size={14} />
         </div>
@@ -98,11 +99,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <item.icon size={19} />
                 <span>{item.label}</span>
-                {item.href === "/orders" && (
-                  <small>
-                    {data.orders.filter((o) => !o.deleted_at).length}
-                  </small>
-                )}
                 {path === item.href && <span className="active-dot" />}
               </Link>
             ))}
@@ -110,12 +106,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-bottom">
           <div className="demo-note">
             <span className="eyebrow">
-              <span className="live-dot" /> GIAI ĐOẠN 01 · BẢN MẪU
+              <span className="live-dot" /> DỮ LIỆU TẬP TRUNG
             </span>
-            <strong>Sẵn sàng để khám phá</strong>
+            <strong>Không gian vận hành</strong>
             <p>
-              Trải nghiệm với dữ liệu mẫu. Mọi thay đổi chỉ lưu trên trình duyệt
-              này.
+              Dữ liệu được lưu trong PostgreSQL và chia sẻ theo quyền truy cập.
             </p>
             <Link href="/reports">
               Khám phá báo cáo <ArrowUpRight size={15} />
@@ -123,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="sidebar-footer">
             <CircleHelp size={16} />
-            <span>SheetOps · Bản thử nghiệm</span>
+            <span>SheetOps · Nội bộ</span>
           </div>
         </div>
       </aside>
@@ -145,54 +140,37 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="topbar-right">
             <span className="demo-pill">
-              <span className="live-dot" /> Dữ liệu demo
+              <span className="live-dot" /> PostgreSQL
             </span>
             <details className="user-menu">
-              <summary aria-label={`Tài khoản demo: ${roleLabels[user.role]}`}>
+              <summary aria-label={`Tài khoản: ${roleLabels[user.role]}`}>
                 <span className="avatar">{user.full_name.slice(0, 1)}</span>
                 <span className="user-label">
-                  {user.full_name.replace(" (giả lập)", "")}
+                  {user.full_name}
                   <small>{roleLabels[user.role]}</small>
                 </span>
                 <ChevronDown size={15} />
               </summary>
               <div className="user-dropdown">
-                <p>CHUYỂN VAI TRÒ DEMO</p>
-                {roles.map((role) => (
-                  <button
-                    key={role}
-                    disabled={
-                      !data.users.some((u) => u.role === role && u.is_active)
-                    }
-                    onClick={(e) => {
-                      if (login(role)) {
-                        e.currentTarget
-                          .closest("details")
-                          ?.removeAttribute("open");
-                      }
-                    }}
-                  >
-                    {roleLabels[role]}
-                    {user.role === role && <Check size={15} />}
-                  </button>
-                ))}
-                <hr />
                 <button
-                  onClick={() => {
-                    logout();
-                    router.push("/login");
+                  onClick={async () => {
+                    try {
+                      await logout();
+                    } catch {
+                      toast.error("Không thể đăng xuất. Vui lòng thử lại.");
+                    }
                   }}
                 >
-                  <LogOut size={15} /> Đăng xuất demo
+                  <LogOut size={15} /> Đăng xuất
                 </button>
               </div>
             </details>
           </div>
         </header>
         <main id="main-content" className="main-content">
-          {storageError && (
+          {error && (
             <div className="notice notice-error" role="alert">
-              {storageError}
+              {error}
             </div>
           )}
           {permitted ? (
@@ -202,8 +180,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <ShieldCheck size={42} />
               <h1>Bạn không có quyền truy cập</h1>
               <p>
-                Trang này chỉ dành cho quản trị viên. Phân quyền hiện được mô
-                phỏng trên trình duyệt.
+                Trang này chỉ dành cho quản trị viên. Quyền truy cập được kiểm
+                tra phía máy chủ.
               </p>
               <Button asChild>
                 <Link href="/dashboard">Về tổng quan</Link>
@@ -214,7 +192,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <footer className="app-footer">
           <span>© 2026 SheetOps. Không gian vận hành của bạn.</span>
           <span>
-            <span className="live-dot" /> Bản demo · Không kết nối dịch vụ thật
+            <span className="live-dot" /> Kết nối dữ liệu tập trung
           </span>
         </footer>
       </div>
@@ -222,100 +200,4 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function LoginPage() {
-  const { login, ready, user, storageError } = useDemo();
-  const [role, setRole] = useState<Role>("admin");
-  const router = useRouter();
-  if (!ready) return <LoadingState />;
-  return (
-    <div className="login-page">
-      <div className="login-story">
-        <div className="brand">
-          <span className="brand-symbol">
-            <Sheet size={26} />
-          </span>
-          <span>SheetOps</span>
-        </div>
-        <div>
-          <span className="eyebrow">MỌI HOẠT ĐỘNG. MỘT GÓC NHÌN.</span>
-          <h1>
-            Vận hành rõ ràng.
-            <br />
-            Quyết định tự tin.
-          </h1>
-          <p>
-            Quản lý đơn hàng, theo dõi doanh thu và kết nối dữ liệu trong một
-            không gian làm việc.
-          </p>
-          <div className="login-stats">
-            <span>
-              <strong>300</strong>đơn hàng mẫu
-            </span>
-            <span>
-              <strong>12</strong>tháng dữ liệu
-            </span>
-            <span>
-              <strong>3</strong>vai trò trải nghiệm
-            </span>
-          </div>
-        </div>
-        <small>Giai đoạn 1 · Bản mẫu tương tác · 2026</small>
-      </div>
-      <section className="login-form">
-        <span className="section-kicker">CHÀO MỪNG ĐẾN SHEETOPS</span>
-        <h2>Khám phá không gian demo</h2>
-        <p>Chọn một vai trò để trải nghiệm ứng dụng.</p>
-        <div className="notice">
-          <ShieldCheck size={20} />
-          <span>
-            Đăng nhập và phân quyền được mô phỏng. Không cần mật khẩu; đây chưa
-            phải hệ thống bảo mật thật.
-          </span>
-        </div>
-        {storageError && (
-          <div role="alert" className="notice notice-error">
-            {storageError}
-          </div>
-        )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (login(role)) router.push("/dashboard");
-          }}
-        >
-          <label className="field">
-            Vai trò trải nghiệm
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-            >
-              {roles.map((r) => (
-                <option key={r} value={r}>
-                  {roleLabels[r]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="role-description">
-            {role === "admin"
-              ? "Toàn quyền khám phá đơn hàng, báo cáo và quản trị demo."
-              : role === "editor"
-                ? "Xem báo cáo và tạo, sửa, xóa mềm đơn hàng mẫu."
-                : "Chỉ xem tổng quan, đơn hàng và báo cáo."}
-          </div>
-          <Button type="submit" className="w-full">
-            Vào không gian làm việc <ArrowUpRight size={17} />
-          </Button>
-        </form>
-        {user && (
-          <Button variant="ghost" onClick={() => router.push("/dashboard")}>
-            Tiếp tục với {roleLabels[user.role]}
-          </Button>
-        )}
-        <small className="muted">
-          Dữ liệu hư cấu · Lưu cục bộ trên trình duyệt
-        </small>
-      </section>
-    </div>
-  );
-}
+export { LoginPage } from "./login-view";

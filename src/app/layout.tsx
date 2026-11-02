@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
-import { DemoProvider } from "@/components/demo-provider";
+import { WorkspaceProvider } from "@/components/workspace-provider";
 import { AppShell } from "@/components/shell";
 import "./globals.css";
 export const metadata: Metadata = {
@@ -8,8 +8,7 @@ export const metadata: Metadata = {
     default: "SheetOps — Không gian vận hành",
     template: "%s | SheetOps",
   },
-  description:
-    "Bản thử nghiệm quản lý đơn hàng và phân tích vận hành. Dữ liệu hư cấu, lưu trên trình duyệt.",
+  description: "Quản lý đơn hàng và phân tích vận hành với dữ liệu tập trung.",
 };
 export default function RootLayout({
   children,
@@ -17,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body>
-        <DemoProvider>
+        <WorkspaceProvider>
           <AppShell>{children}</AppShell>
           <Toaster
             richColors
@@ -26,7 +25,7 @@ export default function RootLayout({
             toastOptions={{ closeButtonAriaLabel: "Đóng thông báo" }}
             containerAriaLabel="Thông báo"
           />
-        </DemoProvider>
+        </WorkspaceProvider>
       </body>
     </html>
   );

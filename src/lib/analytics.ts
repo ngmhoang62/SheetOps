@@ -7,8 +7,8 @@ export type Filters = {
   search?: string;
 };
 export const defaultFilters: Filters = {
-  from: "2026-01-01",
-  to: "2026-12-31",
+  from: "",
+  to: "",
   status: "all",
 };
 export function filterOrders(orders: Order[], filters: Filters) {
