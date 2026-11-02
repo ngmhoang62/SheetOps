@@ -42,9 +42,16 @@ Tested the **production build** with Playwright CLI in Chromium, at 1440×1100 d
 
 - [Desktop dashboard](screenshots/dashboard-desktop.png)
 - [Mobile dashboard](screenshots/dashboard-mobile.png)
+- [Orders table](screenshots/orders-desktop.png)
 - [Repeatable demo walkthrough](UAT.md)
 - Unit suite: `tests/domain.test.ts` (deterministic seed, schema/storage validation, dates/amounts/codes, mutations, filters, aggregate consistency, roles/user safeguards, CSV quoting and formula escaping).
 
-Playwright runtime snapshots, console logs, and downloaded CSV are ignored under `.playwright-cli/` and `output/playwright/`. Only the two selected screenshots are tracked. This delivery does not include a Playwright test-runner suite; the observed browser run and repeatable manual UAT are documented separately from the automated unit suite. Storage-denial and corrupt-storage recovery, every user-change dialog, and all browsers were not manually exercised. Their applicable pure domain invariants are unit-tested.
+Playwright runtime snapshots, console logs, and downloaded CSV are ignored under `.playwright-cli/` and `output/playwright/`. Only selected review screenshots are tracked. This delivery does not include a Playwright test-runner suite; the observed browser run and repeatable manual UAT are documented separately from the automated unit suite. Storage-denial and corrupt-storage recovery, every user-change dialog, and all browsers were not manually exercised. Their applicable pure domain invariants are unit-tested.
 
 GitHub Actions is configured for the same checks on pushes to `main` and pull requests. Local verification does not imply that a remote Actions run has passed; its status must be checked in GitHub after pushing. No application deployment is part of Phase 1.
+
+## Readability refinement — 2026-11-02
+
+Increased the shared typography scale across login and all six workspace pages: navigation/body/table data 15–16px, KPI labels 18px, section headings 20px, chart ticks 14px. Removed page subtitle descriptions and redundant order/chart/KPI captions while retaining revenue semantics and demo warnings. Resized cards, controls, rows, sidebar, dialogs and responsive grids; phone KPIs stack in one column to preserve legibility.
+
+Validated ESLint, strict TypeScript, all 33 unit tests and production build. Build needed the same Windows filesystem access documented above. Browser review covered all six workspace routes at 1440px desktop and 390px mobile; no whole-document horizontal overflow on any mobile route. Desktop dashboard measured 15px navigation, 18px KPI labels and 20px section titles. The linked screenshots reflect the updated layout.
