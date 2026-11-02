@@ -138,7 +138,7 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
             <strong className="kpi-value" data-testid={card.label}>
               {card.value}
             </strong>
-            <p>{card.caption}</p>
+            {card.className === "kpi-featured" && <p>{card.caption}</p>}
           </section>
         ))}
       </div>
@@ -171,17 +171,17 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
                   />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 11, fill: "#78847d" }}
+                    tick={{ fontSize: 14, fill: "#78847d" }}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={12}
                   />
                   <YAxis
                     tickFormatter={shortMoney}
-                    tick={{ fontSize: 11, fill: "#78847d" }}
+                    tick={{ fontSize: 14, fill: "#78847d" }}
                     axisLine={false}
                     tickLine={false}
-                    width={62}
+                    width={76}
                   />
                   <Tooltip
                     cursor={{ fill: "#f0f5f2" }}
@@ -189,7 +189,7 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
                     contentStyle={{
                       borderRadius: 12,
                       border: "1px solid #e5eae6",
-                      fontSize: 12,
+                      fontSize: 14,
                     }}
                   />
                   <Bar
@@ -215,7 +215,6 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
           <div className="panel-heading">
             <div>
               <h2>Trạng thái đơn hàng</h2>
-              <p>Phân bổ trong khoảng đã chọn</p>
             </div>
           </div>
           {orders.length ? (
@@ -383,7 +382,6 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
               <h2>
                 Đơn hàng gần đây <span className="count-pill">10 gần nhất</span>
               </h2>
-              <p>Những đơn mới nhất theo ngày đặt hàng trong bộ lọc</p>
             </div>
             <Link className="text-link" href="/orders">
               Xem tất cả <ArrowRight size={14} />

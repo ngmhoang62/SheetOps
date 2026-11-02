@@ -233,7 +233,6 @@ export function OrdersView() {
               Danh sách đơn hàng{" "}
               <span className="count-pill">{filtered.length}</span>
             </h2>
-            <p>Thay đổi được lưu trong trình duyệt và cập nhật vào báo cáo.</p>
           </div>
           <label className="search-field">
             <Search size={17} />

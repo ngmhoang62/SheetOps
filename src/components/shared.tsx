@@ -14,7 +14,6 @@ import {
 export function PageHeading({
   kicker,
   title,
-  description,
   children,
 }: {
   kicker: string;
@@ -27,7 +26,6 @@ export function PageHeading({
       <div>
         <span className="section-kicker">{kicker}</span>
         <h1>{title}</h1>
-        <p>{description}</p>
       </div>
       <div className="heading-actions">{children}</div>
     </div>
