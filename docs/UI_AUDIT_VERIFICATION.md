@@ -36,9 +36,11 @@ Security Advisor after the additive staging migration has no new finding: existi
 
 Applied to staging only: `20261103174506_audit_pagination.sql`. It adds nullable actor snapshot columns, a private capture trigger, and an authenticated Admin-only, SECURITY INVOKER paginated RPC. Existing RLS remains in force. Old API consumers must adopt `{events,total,page,pageSize}` instead of an array; the application Settings consumer is updated together.
 
+The connected migration service records this staging migration as version `20261103174946`, name `audit_pagination`. Verify name/content and the local-to-remote history mapping before future CLI deployment; do not blindly reapply it or repair production history. No history repair was performed here.
+
 Before an independently approved production release, review/apply the pending `order_visibility` migration from the prior work and then `audit_pagination` in order. Apply this additive migration before deploying the new audit consumer. Rolling the application back can leave these additive columns/functions in place; do not delete audit history. Current owner authorization does not allow a dev → main merge.
 
-See `RETRY_BEHAVIOR.md` for the exact existing retry and uncertain-commit behavior. Automated quality, final CI and bounded Preview results are recorded below after verification.
+See `RETRY_BEHAVIOR.md` for the exact existing retry and uncertain-commit behavior. Automated quality, CI and bounded Preview results are recorded below.
 
 ## Quality and query evidence
 
@@ -46,3 +48,13 @@ See `RETRY_BEHAVIOR.md` for the exact existing retry and uncertain-commit behavi
 - Read-only staging `EXPLAIN (ANALYZE, BUFFERS)` under the retained Admin's authenticated role: `audit_page(1,50,...)` execution 12.003 ms, planning 0.046 ms, shared buffers hit 993. This is one query observation, not a P50/P95 or browser/network benchmark; no speculative index was added.
 - Local calibration of the bounded annotation smoke: PASS at `2026-11-03T18:09:11Z` (2026-11-04 01:09 UTC+7). Ten checks: login, current active-count Dashboard, compact hidden filter, Orders, report height, Reports, live paginated audit, Settings, CSV BOM/header and logout. Forty-five total requests, twenty-two application requests, one maximum controlled request per lane; fifteen speculative prefetches skipped. Retained data read-back unchanged.
 - The focused synthetic audit/browser suite and paced smoke are complementary: detailed role/pagination tests run locally; Preview is limited to one paced smoke without business writes. Pacing timings are deliberately excluded from product performance comparisons.
+
+## Verified Preview
+
+- Tested application head: `9b1f4591d4b1196878cbfe027f4a9b36dbb6350d` (`b1a7852` contains implementation; `9b1f459` adds verification and retry documentation).
+- [GitHub Actions](https://github.com/ngmhoang62/SheetOps/actions/runs/41691363676): completed/success for this dev head.
+- Vercel deployment `dpl_7Nw5jhqcaSN1vEPFQSzNgGcij9xr`: READY, dev, Preview target, region sin1. [Stable Preview](https://sheetops-git-dev-nguyen-minh-hoang-s-team.vercel.app), immutable deployment `sheetops-bxrlyv40z-nguyen-minh-hoang-s-team.vercel.app`.
+- One bounded online annotation smoke: **PASS**, completed `2026-11-03T18:14:05.540Z` (2026-11-04 01:14 UTC+7). Same ten functional checks as local, including the actual hidden-order filter, independent report card height, live paginated audit (50 rows, names, roles, human targets), CSV and logout.
+- Forty-four total requests, twenty-one application requests, application concurrency one, asset concurrency one, peak controlled concurrency two; fifteen unrelated speculative prefetches skipped. No Challenge/429 observed in this run. No protection policy or rule changed; existing authorized CLI OIDC was kept in memory and scoped to the Preview origin.
+- Retained Orders, profiles and sync-run hashes unchanged after scoped fixture cleanup. No Orders/Sheets mutation, invitation or initial import was performed by this Preview smoke. Detailed pagination/role-history mutations were verified on Local Staging with owned synthetic fixtures, not on Preview or production.
+- Existing initial-import acceptance, broad performance results and external provider workflow evidence remain in their prior reports; this narrow UI follow-up does not claim to rerun every workflow.
