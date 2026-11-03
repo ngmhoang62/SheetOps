@@ -1,3 +1,4 @@
+import { assertStaging } from "../src/lib/environment";
 import { loadEnvConfig } from "@next/env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
@@ -8,8 +9,7 @@ async function main() {
   if (process.env.RUN_CLOUD_TESTS !== "1")
     throw new Error("Set RUN_CLOUD_TESTS=1 explicitly");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  if (new URL(url).hostname !== "ubaxgkqkfcrqbyshkidz.supabase.co")
-    throw new Error("Wrong project");
+  assertStaging(process.env);
   const service = createClient(url, process.env.SUPABASE_SECRET_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

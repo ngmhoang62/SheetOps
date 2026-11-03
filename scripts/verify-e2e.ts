@@ -1,3 +1,4 @@
+import { assertStaging, stagingSheet } from "../src/lib/environment";
 import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -17,8 +18,7 @@ async function main() {
   if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname))
     throw new Error("Local test server required");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  if (new URL(url).hostname !== "ubaxgkqkfcrqbyshkidz.supabase.co")
-    throw new Error("Wrong project");
+  assertStaging(process.env);
   const service = createClient(url, process.env.SUPABASE_SECRET_KEY!, {
     auth: { persistSession: false },
   });
@@ -36,6 +36,7 @@ async function main() {
   });
   const sheets = google.sheets({ version: "v4", auth });
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID!;
+  stagingSheet(spreadsheetId, process.env.STAGING_GOOGLE_SPREADSHEET_ID);
   const backupTabs: { name: string; id: number; rows: string[][] }[] = [];
   const canonical = [
     "order_code",

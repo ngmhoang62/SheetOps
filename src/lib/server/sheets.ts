@@ -11,6 +11,7 @@ import {
 import type { LiveOrder } from "@/lib/contracts";
 import { privilegedClient } from "@/lib/supabase/server";
 import { HttpError } from "./http";
+import { stagingSheet } from "../environment";
 
 function client() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -18,6 +19,8 @@ function client() {
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
   if (!email || !key || !spreadsheetId)
     throw new HttpError(503, "Chưa cấu hình Google Sheets.");
+  if (process.env.VERCEL_ENV === "preview" || process.env.APP_ENV === "staging")
+    stagingSheet(spreadsheetId, process.env.STAGING_GOOGLE_SPREADSHEET_ID);
   const auth = new google.auth.JWT({
     email,
     key,

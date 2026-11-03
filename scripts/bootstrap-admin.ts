@@ -1,6 +1,7 @@
 import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { backendTarget } from "../src/lib/environment";
 loadEnvConfig(process.cwd());
 // Run only from a trusted terminal. Create the Auth account in the dashboard first.
 // No passwords, tokens or credential values are printed or accepted in command arguments.
@@ -13,8 +14,12 @@ async function main() {
     .max(200)
     .parse(process.env.BOOTSTRAP_ADMIN_NAME);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url || new URL(url).hostname !== "ubaxgkqkfcrqbyshkidz.supabase.co")
-    throw new Error("Incorrect project");
+  backendTarget(
+    url,
+    process.env.APP_ENV === "staging",
+    process.env.NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF,
+  );
+  if (!url) throw new Error("Missing target");
   const secret = process.env.SUPABASE_SECRET_KEY;
   if (!secret) throw new Error("Missing server key");
   const db = createClient(url, secret, {

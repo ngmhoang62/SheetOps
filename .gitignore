@@ -17,3 +17,7 @@ Thumbs.db
 supabase/.temp/
 test-results/
 playwright-report/
+backups/
+*.dump
+*.sql.gz
+*.age

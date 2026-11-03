@@ -1,3 +1,4 @@
+import { assertStaging, stagingSheet } from "../src/lib/environment";
 import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import { google } from "googleapis";
@@ -8,11 +9,12 @@ async function main() {
   if (process.env.RUN_CLOUD_TESTS !== "1")
     throw new Error("Explicit opt-in required");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  assert.equal(new URL(url).hostname, "ubaxgkqkfcrqbyshkidz.supabase.co");
+  assertStaging(process.env);
   const db = createClient(url, process.env.SUPABASE_SECRET_KEY!, {
     auth: { persistSession: false },
   });
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID!;
+  stagingSheet(spreadsheetId, process.env.STAGING_GOOGLE_SPREADSHEET_ID);
   // Actual Google credentials, deliberately read-only scope: the provider rejects writes with 403.
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,

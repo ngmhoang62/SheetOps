@@ -2,6 +2,7 @@ import { loadEnvConfig } from "@next/env";
 import { google } from "googleapis";
 import { pathToFileURL } from "node:url";
 import { generateOrders } from "../src/lib/seed";
+import { assertStaging, stagingSheet } from "../src/lib/environment";
 import { inputHeaders, parseSheet } from "../src/lib/sheets-format";
 
 class SeedError extends Error {}
@@ -46,6 +47,13 @@ async function main() {
       "Opt-in required: use --check (read only) or --confirm-development-source (development spreadsheet only).",
     );
   loadEnvConfig(process.cwd());
+  if (write) {
+    assertStaging(process.env);
+    stagingSheet(
+      process.env.GOOGLE_SPREADSHEET_ID,
+      process.env.STAGING_GOOGLE_SPREADSHEET_ID,
+    );
+  }
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
