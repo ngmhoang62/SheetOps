@@ -44,3 +44,9 @@ Set up backups, restore verification and a rollback plan before real data. Rolli
 ## Phase 3 Preview
 
 See STAGING_SETUP.md for all Preview variables and exact redirect configuration. Existing production secrets are not copied. Missing independent staging settings intentionally return 503. Vercel dev pushes should create Preview deployments in the existing project; automatic Cron runs only in Production. Both staging Preview and the approved production release now run in sin1, aligned with Singapore PostgreSQL. See PHASE_3_VERIFICATION.md for actual deployment evidence.
+
+## Later performance/visibility release gate
+
+The dev performance work requires the reviewed order_visibility migration before a production rollout. It has only been applied on independent staging. See HIDE_RESTORE.md for grants, compatibility and migration-history checks, and PERFORMANCE_ENGINEERING.md for measured acceptance/remaining blockers. Do not merge this work or migrate production under the earlier PR #1 approval.
+
+Already-confirmed invited accounts use an explicitly requested password-recovery email to finish setup when the original one-use invite was consumed; they are not deleted/recreated. The password page accepts verified invite/recovery sessions, checks the active profile, saves the password, logs out, and goes to /login. Never change the authentication mode to Magic Link or log the session fragment. Preview SSO and platform Security Checkpoint are separate layers; keep protection enabled and do not interpret a challenge HTML response as an application's JSON 403.

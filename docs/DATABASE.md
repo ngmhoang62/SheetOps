@@ -40,4 +40,6 @@ Role/active changes use `manage_profile`, with an advisory lock and self-change/
 
 ## Backup and restore
 
+Later dev visibility contract: deleted_at is reused for Hide/Restore. The staging-only order_visibility migration permits all active trusted application roles to SELECT hidden rows, while Admin/Editor alone can change visibility through a locked, idempotent RPC. Existing update/uniqueness/audit guards remain. Active-only analytics/report/export predicates are retained. See HIDE_RESTORE.md before a separately approved production rollout.
+
 Before importing real data, configure and verify Supabase backups appropriate to the project plan; retain encrypted exports outside Google Sheets. Test restoration in an isolated project before production use. Soft delete and audit are operational safeguards, not backups. Do not restore a stale Orders snapshot into production without reconciling users, audit, sync keys and the application-managed Sheets output.

@@ -1,5 +1,7 @@
 # Local staging performance review — 2026-11-03
 
+Historical first optimization pass. Current cache/visibility work and final measured acceptance are in PERFORMANCE_BASELINE.md, PERFORMANCE_ENGINEERING.md and PERFORMANCE_RESULTS.md. The earlier no-cache statements and empty-fixture counts below describe that earlier checkpoint, not the current retained staging environment.
+
 ## Scope and method
 
 Work stays on dev; no production release or business writes. The initially running port 3000 used production configuration, so it was inspected read-only. Mutating checks use the independent msrmoffrfjhqijdfzzwm staging project and declared staging Sheet, on port 3001. Owner QA account is retained. Source_Orders is never modified. Disposable fixtures and managed output snapshots are restored by the existing guarded E2E script.

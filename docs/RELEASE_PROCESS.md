@@ -12,3 +12,5 @@ main is production; dev is development/Preview. Default work remains on dev. Con
 6. If release fails, owner approves promotion of previous compatible deployment; never drop tables or reverse data to match old application code.
 
 CI job `verify` (workflow Application checks) is the recommended required check. For a solo owner, avoid requiring an impossible second-person review or enforcing an owner lockout. Recommended protection: PRs, passing verify, no force-push/deletion, owner bypass for emergency maintenance. Branch protection/ruleset entitlement and write permission must be verified in repo Settings; no policies are claimed active until confirmed. GitHub CLI/connector support for protection was unavailable in this session. Do not change billing for private-repository protection.
+
+The subsequent performance/Hide-Restore work remains dev-only. Its migration was applied on staging, not production; use HIDE_RESTORE.md for the required approved rollout. A READY deployment and green CI do not replace the outstanding online workflow/latency gates recorded in PERFORMANCE_ENGINEERING.md. The earlier release authorization does not cover this work.
