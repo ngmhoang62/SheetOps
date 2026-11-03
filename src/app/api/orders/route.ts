@@ -10,10 +10,10 @@ import { listOrders, params } from "@/lib/server/orders";
 import { liveOrderInput } from "@/lib/contracts";
 export async function GET(request: Request) {
   try {
-    const { result } = await readAsActor((db) =>
+    const { result, timings } = await readAsActor((db) =>
       listOrders(db, params(request)),
     );
-    return json(result);
+    return json(result, 200, timings);
   } catch (e) {
     return fail(e);
   }

@@ -13,10 +13,22 @@ export class HttpError extends Error {
     super(message);
   }
 }
-export function json(data: unknown, status = 200) {
+export function json(
+  data: unknown,
+  status = 200,
+  timings: Record<string, number> = {},
+) {
   return NextResponse.json(
     { data },
-    { status, headers: { "Cache-Control": "private, no-store" } },
+    {
+      status,
+      headers: {
+        "Cache-Control": "private, no-store",
+        "Server-Timing": Object.entries(timings)
+          .map(([name, ms]) => name + ";dur=" + Math.max(0, ms).toFixed(1))
+          .join(", "),
+      },
+    },
   );
 }
 export function fail(error: unknown) {
@@ -136,6 +148,8 @@ export async function readAsActor<T>(
   read: (db: Awaited<ReturnType<typeof serverClient>>) => PromiseLike<T>,
   allowed?: Role[],
 ) {
+  const started = performance.now();
+  const timings: Record<string, number> = {};
   const db = await serverClient();
   const { data, error } = await db.auth.getUser();
   if (error && (error.status === 0 || (error.status ?? 0) >= 500))
@@ -145,9 +159,18 @@ export async function readAsActor<T>(
       "AUTH_UNAVAILABLE",
     );
   if (error || !data.user) throw new HttpError(401, "Vui lòng đăng nhập.");
+  timings.auth = performance.now() - started;
+  const readStarted = performance.now();
   const [{ profile }, result] = await Promise.all([
-    authorizeActor(db, data.user.id, allowed),
-    read(db),
+    authorizeActor(db, data.user.id, allowed).then((v) => {
+      timings.profile = performance.now() - readStarted;
+      return v;
+    }),
+    Promise.resolve(read(db)).then((v) => {
+      timings.data = performance.now() - readStarted;
+      return v;
+    }),
   ]);
-  return { profile, result };
+  timings.total = performance.now() - started;
+  return { profile, result, timings };
 }

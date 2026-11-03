@@ -5,6 +5,7 @@ import { roleLabels, roles, type Role } from "@/lib/domain";
 import type { Profile } from "@/lib/contracts";
 import { formatTime } from "@/lib/analytics";
 import { useWorkspace } from "./workspace-provider";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, useResource } from "./resource";
 import { ConfirmDialog, EmptyState, PageHeading } from "./shared";
 import { Button } from "./ui/button";
@@ -130,7 +131,7 @@ export function UsersView() {
                 );
                 toast.info(result.message);
                 setOpen(false);
-                changed();
+                changed("users");
               } catch (e) {
                 setError(message(e));
               } finally {
@@ -221,7 +222,7 @@ export function UsersView() {
                 ),
               },
             );
-            changed();
+            changed("users");
             setChange(null);
             toast.success("Đã cập nhật quyền.");
           } catch (e) {
@@ -253,7 +254,13 @@ type Preview = {
 export function SyncView() {
   const { revision, changed } = useWorkspace();
   const runs = useResource<Run[]>("/api/sync/runs", revision);
-  const [connection, setConnection] = useState<{ tabs: string[] } | null>(null);
+  const client = useQueryClient();
+  const connectionResource = useResource<{ tabs: string[] }>(
+    "/api/sync/connection",
+    0,
+    false,
+  );
+  const connection = connectionResource.data;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -264,7 +271,10 @@ export function SyncView() {
     setError("");
     try {
       if (kind === "connection") {
-        setConnection(await api("/api/sync/connection"));
+        client.setQueryData(
+          ["/api/sync/connection"],
+          await api("/api/sync/connection"),
+        );
         toast.success("Đã kiểm tra kết nối thực tế.");
       }
       if (kind === "preview")
@@ -272,7 +282,7 @@ export function SyncView() {
       if (kind === "export") {
         await api("/api/sync/export", { method: "POST" });
         toast.success("Đã xuất và kiểm chứng dữ liệu.");
-        changed();
+        changed("sync");
       }
       if (kind === "import" && preview) {
         await api("/api/sync/import/confirm", {
@@ -281,12 +291,12 @@ export function SyncView() {
         });
         setPreview(null);
         setConfirm(false);
-        changed();
+        changed("sync");
         toast.success("Đã nhập dữ liệu vào PostgreSQL.");
       }
     } catch (e) {
       setError(message(e));
-      changed();
+      changed("sync");
     } finally {
       setPending(false);
     }
@@ -501,7 +511,7 @@ export function SettingsView() {
                 body: JSON.stringify({ organization: name }),
               });
               await refresh();
-              changed();
+              changed("settings");
               toast.success("Đã lưu cài đặt.");
             } catch (e) {
               toast.error(message(e));
@@ -559,7 +569,9 @@ export function SettingsView() {
                       {{
                         created: "Tạo",
                         updated: "Cập nhật",
-                        deleted: "Xóa mềm",
+                        deleted: "Ẩn (lịch sử)",
+                        hidden: "Ẩn đơn hàng",
+                        restored: "Kích hoạt lại",
                         import: "Nhập Sheets",
                         export: "Xuất Sheets",
                       }[a.action] ?? a.action}

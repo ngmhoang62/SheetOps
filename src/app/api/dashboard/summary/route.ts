@@ -6,6 +6,7 @@ export async function GET(request: Request) {
     const f = filterSchema.parse(params(request));
     const {
       result: { data, error },
+      timings,
     } = await readAsActor((db) =>
       db.rpc("analytics_summary", {
         date_from: f.from || null,
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
       }),
     );
     if (error) throw error;
-    return json(data);
+    return json(data, 200, timings);
   } catch (e) {
     return fail(e);
   }

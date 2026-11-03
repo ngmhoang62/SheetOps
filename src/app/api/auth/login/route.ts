@@ -15,7 +15,9 @@ export async function POST(request: Request) {
       .object({ email: z.email(), password: z.string().min(1).max(200) })
       .parse(await body(request));
     const db = await serverClient();
+    const started = performance.now();
     const { data, error } = await db.auth.signInWithPassword(input);
+    const authMs = performance.now() - started;
     if (error && (error.status === 0 || (error.status ?? 0) >= 500))
       throw new HttpError(
         503,
@@ -36,7 +38,11 @@ export async function POST(request: Request) {
         db.from("workspace_settings").select("organization").single(),
       ]);
       if (settings.error) throw settings.error;
-      return json({ profile, organization: settings.data.organization });
+      return json({ profile, organization: settings.data.organization }, 200, {
+        password: authMs,
+        profile: performance.now() - started - authMs,
+        total: performance.now() - started,
+      });
     } catch (e) {
       await db.auth.signOut();
       throw e;

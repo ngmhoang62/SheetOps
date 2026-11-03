@@ -21,7 +21,9 @@
     "build:staging": "tsx scripts/start-staging.ts build",
     "test:restore": "tsx scripts/verify-restore.ts",
     "backup:database": "tsx scripts/backup-database.ts",
-    "dev:staging": "tsx scripts/start-staging.ts dev"
+    "dev:staging": "tsx scripts/start-staging.ts dev",
+    "perf:benchmark": "tsx scripts/benchmark-performance.ts",
+    "test:product": "tsx scripts/verify-product.ts"
   },
   "engines": {
     "node": ">=22.12.0",
@@ -32,6 +34,7 @@
     "@radix-ui/react-slot": "1.5.0",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
+    "@tanstack/react-query": "5.105.3",
     "@tanstack/react-table": "9.3.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",

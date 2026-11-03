@@ -24,11 +24,13 @@ export async function POST(request: Request) {
         "APP_ORIGIN chưa được cấu hình đúng. Quản trị viên cần kiểm tra URL ứng dụng.",
         "INVITE_CONFIGURATION",
       );
+    const inviteStarted = performance.now();
     const { data, error } =
       await privilegedClient().auth.admin.inviteUserByEmail(input.email, {
         redirectTo: new URL("/auth/accept", origin).href,
         data: { full_name: input.full_name },
       });
+    const inviteMs = performance.now() - inviteStarted;
     if (error) {
       const failure = invitationFailure(error);
       console.warn(
@@ -71,6 +73,10 @@ export async function POST(request: Request) {
         delivery: "unverified",
       },
       201,
+      {
+        invitation: inviteMs,
+        provision: performance.now() - inviteStarted - inviteMs,
+      },
     );
   } catch (e) {
     return fail(e);

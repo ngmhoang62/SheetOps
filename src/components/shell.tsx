@@ -107,6 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 onClick={() => setOpen(false)}
                 className={`nav-link ${path === item.href ? "active" : ""}`}
               >
