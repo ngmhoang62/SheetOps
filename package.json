@@ -15,7 +15,8 @@
     "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "test:cloud": "tsx scripts/verify-cloud.ts",
     "test:e2e": "tsx scripts/verify-e2e.ts",
-    "test:sync-failure": "node --conditions=react-server --import tsx scripts/verify-sync-failure.ts"
+    "test:sync-failure": "node --conditions=react-server --import tsx scripts/verify-sync-failure.ts",
+    "seed:sheets": "tsx scripts/seed-source-orders.ts"
   },
   "engines": {
     "node": ">=22.12.0",

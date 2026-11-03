@@ -14,7 +14,22 @@ Use ISO dates, valid lowercase statuses, and nonnegative integer VND. Prefer pla
 
 Output appends `updated_at` to the input headers. Export takes a consistent PostgreSQL snapshot and writes all cells as strings using RAW; it does not append records. Staging is fully read back and hashed, then output is replaced in one atomic `spreadsheets.batchUpdate`. A final readback must match before a run is marked successful. A staging/preparation failure leaves the previous successful output intact. If Google accepted publish but its response/readback was lost, the run may be failed while output is already updated; inspect and retry a fresh verified snapshot, never assume the previous output is unchanged after an ambiguous publish.
 
-The initial source inspection found all three tabs reachable and canonical Source headers, but **zero source data rows**. Live import cannot pass until the owner supplies development data and an Admin account. Parser and database-transaction tests are separate evidence, not a substitute for a real source import.
+The initial Phase 2 source inspection found all three tabs reachable and canonical Source headers, but **zero source data rows**. The separately authorized development seed below prepares synthetic input; it does not perform an application import. Parser and database-transaction tests are separate evidence, not a substitute for a real source import.
+
+## Explicit development source seed
+
+`scripts/seed-source-orders.ts` reuses Phase 1 `generateOrders()` and validates all 300 synthetic orders with `parseSheet()`. It loads the existing local environment and uses service-account Sheets write scope. No credentials are printed. This is an explicitly authorized development utility, separate from application exports and verification cleanup scripts.
+
+```powershell
+npm run seed:sheets -- --check
+npm run seed:sheets -- --confirm-development-source
+```
+
+Without a flag the command fails before connecting. `--check` only reads. The write flag permits one RAW write to `Source_Orders!A2:F301` only when the full tab has the exact six-column header and no data. An exact existing sample is a verified no-op; any other content stops the operation. At least 301 existing grid rows are required. Full-tab formula-mode read-back must match every string cell, including Unicode, and pass import validation; extra rows/columns are rejected. There is no clear, append, database import or automatic write retry. A second source check runs immediately before writing, but the API has no compare-and-swap: keep this development tab free of concurrent edits during the command. After an ambiguous API failure, run `--check` before retrying. Never run cloud cleanup suites against this seeded source.
+
+To accept the business workflow, sign in as an active Admin, open `/sync` (Đồng bộ dữ liệu), check the connection and choose Preview Import. Confirm 300 valid rows and zero errors. Only the user should choose Confirm Import after reviewing the preview; it requires an empty Orders table, including soft-deleted records. Then verify Orders, dashboard/report totals and sync history. This utility never confirms import for you.
+
+Verified execution on 2026-11-03: the configured development `Source_Orders` was header-only. The explicit write completed and full-tab read-back matched all 300 generated orders exactly. A second write-mode invocation returned a verified no-op. PostgreSQL had 0 total orders both before and after (read-only count); no import was performed. Neither managed export tab was written. Lint, typecheck, 57 unit tests and production build passed; a read-only browser check confirmed unauthenticated `/sync` redirects to `/login`. Authenticated Preview/Confirm Import remains user acceptance work.
 
 ## Failure recovery
 
