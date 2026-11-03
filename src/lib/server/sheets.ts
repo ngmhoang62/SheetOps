@@ -6,6 +6,7 @@ import {
   normalizeRows,
   parseSheet,
   snapshotHash,
+  stagingRequests,
   exportRows,
 } from "@/lib/sheets-format";
 import type { LiveOrder } from "@/lib/contracts";
@@ -124,6 +125,7 @@ export async function exportSnapshot(
   if (!started.acquired) return { ...started, reused: true };
   const runId = started.run.id;
   const db = privilegedClient();
+  let phase = "snapshot";
   try {
     const snapshot = await db.rpc("export_snapshot");
     if (snapshot.error) throw snapshot.error;
@@ -136,6 +138,7 @@ export async function exportSnapshot(
     const rows = exportRows(orders);
     const hash = snapshotHash(rows);
     const { sheets, spreadsheetId } = getClient();
+    phase = "metadata";
     const meta = await sheets.spreadsheets.get(
       { spreadsheetId, fields: "sheets.properties" },
       options,
@@ -166,11 +169,17 @@ export async function exportSnapshot(
         );
       }
     }
-    const updated = await sheets.spreadsheets.get(
-      { spreadsheetId, fields: "sheets.properties" },
-      options,
-    );
-    tabs = updated.data.sheets?.map((s) => s.properties!) ?? [];
+    if (
+      !["Export_Staging", "Export_Orders"].every((name) =>
+        tabs.some((tab) => tab.title === name),
+      )
+    ) {
+      const updated = await sheets.spreadsheets.get(
+        { spreadsheetId, fields: "sheets.properties" },
+        options,
+      );
+      tabs = updated.data.sheets?.map((s) => s.properties!) ?? [];
+    }
     const stage = tabs.find((t) => t.title === "Export_Staging")!;
     const output = tabs.find((t) => t.title === "Export_Orders")!;
     const previous = await sheets.spreadsheets.values.get(
@@ -186,49 +195,24 @@ export async function exportSnapshot(
         409,
         "Export_Orders có header không đúng. Không ghi đè bảng chưa xác định.",
       );
-    await sheets.spreadsheets.batchUpdate(
-      {
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              updateSheetProperties: {
-                properties: {
-                  sheetId: stage.sheetId,
-                  gridProperties: {
-                    rowCount: Math.max(
-                      rows.length,
-                      stage.gridProperties?.rowCount ?? 1000,
-                    ),
-                    columnCount: Math.max(
-                      7,
-                      stage.gridProperties?.columnCount ?? 7,
-                    ),
-                  },
-                },
-                fields: "gridProperties",
-              },
-            },
-          ],
-        },
-      },
-      options,
-    );
-    await sheets.spreadsheets.values.clear(
-      { spreadsheetId, range: "'Export_Staging'!A:G" },
-      options,
-    );
+    phase = "staging-write";
     await retry(() =>
-      sheets.spreadsheets.values.update(
+      sheets.spreadsheets.batchUpdate(
         {
           spreadsheetId,
-          range: "'Export_Staging'!A1",
-          valueInputOption: "RAW",
-          requestBody: { values: rows },
+          requestBody: {
+            requests: stagingRequests(
+              stage.sheetId!,
+              rows,
+              stage.gridProperties?.rowCount ?? undefined,
+              stage.gridProperties?.columnCount ?? undefined,
+            ),
+          },
         },
         options,
       ),
     );
+    phase = "staging-readback";
     const staged = await sheets.spreadsheets.values.get(
       {
         spreadsheetId,
@@ -256,6 +240,7 @@ export async function exportSnapshot(
         409,
         "Tác vụ vượt thời gian cho phép; không xuất bản.",
       );
+    phase = "publish";
     // Atomic structural batch: clear output values and copy the fully verified staging snapshot.
     await sheets.spreadsheets.batchUpdate(
       {
@@ -315,6 +300,7 @@ export async function exportSnapshot(
       },
       options,
     );
+    phase = "published-readback";
     const published = await sheets.spreadsheets.values.get(
       {
         spreadsheetId,
@@ -325,6 +311,7 @@ export async function exportSnapshot(
     );
     if (snapshotHash(normalizeRows(published.data.values ?? [], 7)) !== hash)
       throw new HttpError(502, "Kiểm chứng bản xuất chưa thành công.");
+    phase = "complete";
     const finished = await db.rpc("complete_export", {
       run_id: runId,
       count_input: orders.length,
@@ -333,6 +320,16 @@ export async function exportSnapshot(
     if (finished.error) throw finished.error;
     return { runId, status: "success", rowCount: orders.length, hash };
   } catch (error) {
+    const upstream = error as { code?: unknown; status?: unknown };
+    const code = String(upstream.code ?? "UPSTREAM_FAILURE");
+    console.warn(
+      JSON.stringify({
+        event: "export_failed",
+        phase,
+        code: /^[A-Z0-9_]{1,25}$/.test(code) ? code : "UPSTREAM_FAILURE",
+        status: typeof upstream.status === "number" ? upstream.status : null,
+      }),
+    );
     await failRun(runId, error);
     throw error;
   }

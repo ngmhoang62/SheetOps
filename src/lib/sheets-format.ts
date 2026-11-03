@@ -1,5 +1,46 @@
 import { createHash } from "node:crypto";
 import { liveOrderInput, type LiveOrder } from "./contracts";
+
+/** Atomic staging replacement; stringValue preserves RAW text and exact VND. */
+export function stagingRequests(
+  sheetId: number,
+  rows: string[][],
+  rowCount = 1000,
+  columnCount = 7,
+) {
+  return [
+    {
+      updateSheetProperties: {
+        properties: {
+          sheetId,
+          gridProperties: {
+            rowCount: Math.max(rowCount, rows.length),
+            columnCount: Math.max(columnCount, 7),
+          },
+        },
+        fields: "gridProperties",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId, startColumnIndex: 0, endColumnIndex: 7 },
+        cell: {},
+        fields: "userEnteredValue",
+      },
+    },
+    {
+      updateCells: {
+        start: { sheetId, rowIndex: 0, columnIndex: 0 },
+        rows: rows.map((row) => ({
+          values: row.map((value) => ({
+            userEnteredValue: { stringValue: value },
+          })),
+        })),
+        fields: "userEnteredValue",
+      },
+    },
+  ];
+}
 export const inputHeaders = [
   "order_code",
   "customer_name",
