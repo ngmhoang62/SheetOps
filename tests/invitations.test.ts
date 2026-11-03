@@ -70,6 +70,17 @@ describe("invitation session acceptance", () => {
       expect(auth.getUser).not.toHaveBeenCalled();
     },
   );
+  it("accepts password recovery for an already-confirmed invited account", async () => {
+    const auth = client();
+    expect(
+      await acceptInvitationSession(
+        auth,
+        "#access_token=test-access&refresh_token=test-refresh&type=recovery",
+      ),
+    ).toBe(true);
+    expect(auth.setSession).toHaveBeenCalledOnce();
+    expect(auth.getUser).toHaveBeenCalledOnce();
+  });
   it("rejects a token exchange failure", async () => {
     const auth = client();
     auth.setSession.mockResolvedValue({ error: { message: "expired" } });

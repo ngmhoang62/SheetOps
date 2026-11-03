@@ -66,7 +66,15 @@ export default function Accept() {
             });
             if (error) throw error;
             setPassword("");
-            await logout();
+            setReady(false);
+            try {
+              await logout();
+            } catch {
+              setError(
+                "Mật khẩu đã được lưu nhưng chưa đăng xuất được. Hãy thử đăng xuất lại trước khi đăng nhập bằng mật khẩu mới.",
+              );
+              return;
+            }
             router.replace("/login?reason=password_set");
           } catch {
             setError(

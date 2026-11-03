@@ -197,7 +197,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 typeof BroadcastChannel !== "undefined"
                   ? new BroadcastChannel("sheetops-session")
                   : null;
-              channel?.postMessage("reset");
+              channel?.postMessage({ type: "reset", sender: tabId });
               channel?.close();
               setUser(null);
               setSessionIssue(null);
