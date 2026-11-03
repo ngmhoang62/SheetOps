@@ -1,7 +1,7 @@
 # SheetOps conventions
 
 - Consult `docs/PRD.md` and `docs/IMPLEMENTATION_PLAN.md` before changing behavior.
-- Phase 3 is authorized. main is production and dev is development/Preview. Commit/push Phase 3 to dev; never merge/release main without owner approval. Only the explicitly authorized cron restoration may change main during this task.
+- Phase 3 is authorized. main is production and dev is development/Preview. Commit/push Phase 3 to dev; never merge/release main without owner approval. The owner explicitly approved Phase 3 PR #1 release on 2026-11-03 (merged as 0506323); future releases still require owner approval.
 - Production Supabase is ubaxgkqkfcrqbyshkidz (Singapore). Preview and cloud tests require an explicitly declared independent staging ref and Sheet ID; never use the retired project or production cleanup tests. Never provision paid resources or change billing. Preserve Phase 1 history.
 - Use Next.js App Router, strict TypeScript, Tailwind, shadcn/ui, TanStack Table, Recharts, Zod, and npm.
 - Vietnamese UI; English code, types, contracts, and technical documentation.
