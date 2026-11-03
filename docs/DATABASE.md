@@ -40,6 +40,8 @@ Role/active changes use `manage_profile`, with an advisory lock and self-change/
 
 ## Backup and restore
 
+Development audit contract (staging only): `20261103174506_audit_pagination.sql` adds trusted actor name/role snapshots for new audit inserts and an Admin-only, SECURITY INVOKER `audit_page` RPC. Historical events are preserved and explicitly use current-profile fallback when snapshots are absent. Filters precede count and stable server pagination (default 50, maximum 100); responses contain allowlisted change summaries rather than full before/after snapshots. See UI_AUDIT_VERIFICATION.md for release order and evidence.
+
 Later dev visibility contract: deleted_at is reused for Hide/Restore. The staging-only order_visibility migration permits all active trusted application roles to SELECT hidden rows, while Admin/Editor alone can change visibility through a locked, idempotent RPC. Existing update/uniqueness/audit guards remain. Active-only analytics/report/export predicates are retained. See HIDE_RESTORE.md before a separately approved production rollout.
 
 Before importing real data, configure and verify Supabase backups appropriate to the project plan; retain encrypted exports outside Google Sheets. Test restoration in an isolated project before production use. Soft delete and audit are operational safeguards, not backups. Do not restore a stale Orders snapshot into production without reconciling users, audit, sync keys and the application-managed Sheets output.

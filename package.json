@@ -24,7 +24,8 @@
     "dev:staging": "tsx scripts/start-staging.ts dev",
     "perf:benchmark": "tsx scripts/benchmark-performance.ts",
     "test:product": "tsx scripts/verify-product.ts",
-    "test:preview:smoke": "tsx scripts/verify-preview-smoke.ts"
+    "test:preview:smoke": "tsx scripts/verify-preview-smoke.ts",
+    "test:audit-ui": "tsx scripts/verify-audit-ui.ts"
   },
   "engines": {
     "node": ">=22.12.0",

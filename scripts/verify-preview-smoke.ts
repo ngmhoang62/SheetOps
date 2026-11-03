@@ -20,11 +20,16 @@ assertStaging(process.env);
 if (process.env.RUN_PREVIEW_SMOKE !== "1")
   throw Error("Explicit Preview smoke opt-in required");
 const target = process.env.SMOKE_TARGET ?? "preview";
+const annotations = process.env.SMOKE_SCOPE === "annotations";
+if (process.env.SMOKE_SCOPE && !annotations)
+  throw Error("Unsupported smoke scope");
 if (!["preview", "local"].includes(target))
   throw Error("Unsupported smoke target");
 const targetOrigin =
   target === "local" ? "http://127.0.0.1:3001" : onlineOrigin;
-const reportName = target === "local" ? "local-paced-smoke" : "preview-smoke";
+const reportName =
+  (target === "local" ? "local-paced-smoke" : "preview-smoke") +
+  (annotations ? "-annotations" : "");
 
 const traffic = new PreviewTraffic();
 const expect = baseExpect.configure({ timeout: 90000 });
@@ -129,6 +134,13 @@ async function main() {
     // No fixture is created if the platform rejects the access probe.
     result.phase = "fixture";
     baseline = await snapshot();
+    const active = await db
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null);
+    if (active.error || active.count === null)
+      throw Error("Active count unavailable");
+    const expectedActive = String(active.count);
     const email = "preview-smoke-" + randomUUID() + "@example.invalid",
       password = randomUUID() + "Aa1!";
     const created = await db.auth.admin.createUser({
@@ -155,12 +167,16 @@ async function main() {
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     await page.waitForURL("**/dashboard");
     stopIfBlocked();
-    await expect(page.getByTestId("Tổng đơn hàng")).toHaveText("300");
-    checks.push("One password login and loaded 300-order Dashboard");
+    await expect(page.getByTestId("Tổng đơn hàng")).toHaveText(expectedActive);
+    checks.push(
+      "Password login and Dashboard match current active-order count",
+    );
     for (const [label, heading, path] of [
       ["Đơn hàng", "Đơn hàng", "/orders"],
       ["Báo cáo", "Báo cáo vận hành", "/reports"],
-      ["Đồng bộ dữ liệu", "Trung tâm đồng bộ", "/sync"],
+      annotations
+        ? ["Cài đặt", "Cài đặt", "/settings"]
+        : ["Đồng bộ dữ liệu", "Trung tâm đồng bộ", "/sync"],
     ]) {
       result.phase = "read:" + label;
       traffic.focusRoute(path);
@@ -174,40 +190,85 @@ async function main() {
         page.getByRole("heading", { name: heading, exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByText(/Đang tải (thống kê|dữ liệu|đơn hàng)…/, {
+        page.getByText(/Đang tải (thống kê|dữ liệu|đơn hàng|nhật ký)…/, {
           exact: true,
         }),
       ).toHaveCount(0);
       await expect(page.locator("main [role=alert]")).toHaveCount(0);
       stopIfBlocked();
-      if (label === "Đơn hàng")
+      if (label === "Đơn hàng") {
         await expect(page.locator("tbody tr")).toHaveCount(20);
-      if (label === "Báo cáo")
-        await expect(page.getByTestId("Tổng đơn hàng")).toHaveText("300");
+        if (annotations) {
+          expect(
+            (await page.getByLabel("Lọc trạng thái").boundingBox())!.width,
+          ).toBeLessThanOrEqual(240);
+          await pause();
+          await page.getByLabel("Lọc trạng thái").selectOption("hidden");
+          await expect(page.locator("tbody tr").first()).toContainText("Đã ẩn");
+          checks.push(
+            "Compact unified Hidden filter returns retained hidden order",
+          );
+        }
+      }
+      if (label === "Báo cáo") {
+        await expect(page.getByTestId("Tổng đơn hàng")).toHaveText(
+          expectedActive,
+        );
+        if (annotations) {
+          const panels = page.locator(".report-tables > section");
+          expect((await panels.nth(1).boundingBox())!.height).toBeLessThan(
+            (await panels.nth(0).boundingBox())!.height - 100,
+          );
+          checks.push(
+            "Report summary does not stretch to monthly table height",
+          );
+        }
+      }
+      if (annotations && label === "Cài đặt") {
+        const audit = page.locator(".audit-panel");
+        await expect(audit.locator("tbody tr")).toHaveCount(50);
+        await expect(
+          audit.getByRole("columnheader", { name: "Vai trò", exact: true }),
+        ).toBeVisible();
+        await expect(
+          audit.getByRole("columnheader", {
+            name: "Mã đối tượng",
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        expect(await audit.locator("tbody").innerText()).not.toMatch(
+          /[0-9a-f]{8}-[0-9a-f-]{27,}/,
+        );
+        checks.push(
+          "Live audit RPC renders 50 named actors/roles and human targets without UUID column",
+        );
+      }
       checks.push("Loaded page: " + label);
     }
-    result.phase = "sheets-read";
-    await pause();
-    await page
-      .getByRole("button", { name: "Kiểm tra kết nối", exact: true })
-      .click();
-    await expect(
-      page.getByText("Đã kiểm tra kết nối", { exact: true }),
-    ).toBeVisible();
-    stopIfBlocked();
-    await pause();
-    await page
-      .getByRole("button", { name: "Xem trước nhập", exact: true })
-      .click();
-    await expect(
-      page.getByText("Orders đã có dữ liệu; không thể nhập ban đầu.", {
-        exact: true,
-      }),
-    ).toBeVisible();
-    stopIfBlocked();
-    checks.push(
-      "Sheets connection and Preview Import read; populated-table guard visible",
-    );
+    if (!annotations) {
+      result.phase = "sheets-read";
+      await pause();
+      await page
+        .getByRole("button", { name: "Kiểm tra kết nối", exact: true })
+        .click();
+      await expect(
+        page.getByText("Đã kiểm tra kết nối", { exact: true }),
+      ).toBeVisible();
+      stopIfBlocked();
+      await pause();
+      await page
+        .getByRole("button", { name: "Xem trước nhập", exact: true })
+        .click();
+      await expect(
+        page.getByText("Orders đã có dữ liệu; không thể nhập ban đầu.", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      stopIfBlocked();
+      checks.push(
+        "Sheets connection and Preview Import read; populated-table guard visible",
+      );
+    }
     result.phase = "csv";
     await pause();
     const csv = await page.evaluate(async () => {

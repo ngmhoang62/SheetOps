@@ -21,7 +21,7 @@ export async function verifyResponsive(
         page.getByRole("heading", { name: heading, exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByText(/Đang tải (thống kê|dữ liệu|đơn hàng)…/, {
+        page.getByText(/Đang tải (thống kê|dữ liệu|đơn hàng|nhật ký)…/, {
           exact: true,
         }),
       ).toHaveCount(0);

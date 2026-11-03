@@ -1,0 +1,40 @@
+# Retry and reconciliation behavior
+
+Reviewed against the installed SDKs and application code on 2026-11-04. This review documents existing behavior; it does not add a queue, change retry policies, or simulate outages on production. An attempt count below includes the first request.
+
+## Request layers
+
+| Layer / operation                                                    | Current behavior                                                                                                                                                            | Limits                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser cached reads (`query-policy.ts`)                             | Up to 2 attempts. No retry for 401/403/404/422. Refocus/stale refetch is separate from retry.                                                                               | Failed authorization clears private data; cached results never grant access.                                                                                                                                               |
+| Browser mutations (`resource.ts`)                                    | One request; no automatic replay. Pending is not success.                                                                                                                   | A lost response can leave the commit outcome unknown. Re-read before repeating.                                                                                                                                            |
+| Vercel → Supabase PostgREST reads                                    | Installed `@supabase/postgrest-js` retries GET/HEAD/OPTIONS for HTTP 503/520 and eligible fetch failures: up to 4 attempts, 1/2/4-second waits; honors numeric Retry-After. | 401/403 are not retried. POST RPCs, including read-only RPCs such as `audit_page`, are not automatically replayed.                                                                                                         |
+| Vercel → database writes / POST RPCs                                 | SDK does not automatically replay POST/PATCH/DELETE. SQL transaction either commits or rolls back within PostgreSQL.                                                        | Browser timeout does not prove rollback. There is no distributed transaction with Google Sheets.                                                                                                                           |
+| Google connection metadata / Source preview / staging snapshot write | Application wrapper retries HTTP 429/500/502/503/504, up to 3 attempts, waits 250/500 ms.                                                                                   | Google request retries are explicitly disabled underneath this wrapper; 10-second request timeout. Network exceptions without one of those HTTP codes are not retried by the wrapper. No Retry-After/jitter handling here. |
+| Other export Google calls                                            | Export metadata, tab creation, header reads, staging read-back, publication and final read-back currently have one application attempt.                                     | Do not assume every Google call has the three-attempt wrapper.                                                                                                                                                             |
+| Vercel scheduled invocation                                          | No automatic retry of a failed invocation.                                                                                                                                  | Daily idempotency prevents duplicate execution; it is not a retry queue.                                                                                                                                                   |
+
+The user-scoped server Supabase transport has a **12-second per-fetch** timeout. This is not an overall request deadline; nested read retries can take longer. The privileged client does not use this custom transport. Supabase Auth refresh has its own bounded retry behavior; it does not imply password-login/invitation requests or business mutations are automatically retried.
+
+SDK GET retry behavior is verified without network access by `tests/database-retry.test.ts`, including authorization denial and non-replay of writes/POST RPCs. External platform behavior: [Vercel cron error handling](https://vercel.com/docs/cron-jobs/manage-cron-jobs#cron-job-error-handling).
+
+## Sync integrity and uncertain results
+
+Export reads an active-order database snapshot, writes `Export_Staging` as one structural batch, verifies its hash, checks the running lease, publishes to `Export_Orders` as one atomic Google batch, verifies the published hash, then commits success and audit through `complete_export`.
+
+- Failure before publication preserves the previous `Export_Orders`. A repeated staging write replaces the same staging range; it does not append duplicate rows.
+- Publication and the final database completion are separate systems. If publication succeeds but the read-back/database completion fails, the sheet may already contain the new snapshot while the run is failed or still running. Do not report that the sheet was necessarily rolled back.
+- `failRun` attempts to persist a sanitized failure. A database outage can prevent that update; it does not enqueue recovery. The next `begin_sync` call expires runs older than ten minutes. Expiration is not a continuously running sweeper or automatic replay.
+- A global running-run guard and unique idempotency key serialize sync acquisition. Cron uses the business-date key `daily:YYYY-MM-DD`; a repeated invocation reuses the same run, including a failed run. Manual export uses a new key for an explicit new attempt.
+- The publication lease is 90 seconds; sync route function budget is 120 seconds. Neither is a guarantee of reliable background execution after the request is terminated.
+- Import validates Source again and performs import/audit/completion transactionally in PostgreSQL. A nonempty database blocks initial import. A response lost after commit requires re-reading Orders and Sync History, not deleting data to repeat import.
+
+## Operator decisions
+
+1. Check Sync History for job, trigger, time, status and row count. Inspect sanitized Vercel/Supabase errors; an HTTP timeout alone does not establish the commit outcome.
+2. For an ambiguous export, compare the run hash/count to the database snapshot and published sheet read-back. Preserve the last published sheet and source data.
+3. Resolve configuration/permissions failures before retrying. Retrying 403 cannot repair spreadsheet sharing or an invalid role.
+4. After a transient failure is resolved, use an explicit manual Export Now only after confirming no run is active. A manual success does not prove scheduled delivery worked.
+5. For uncertain CRUD, look up the same order code/ID before repeating. Unique order codes and idempotent Hide/Restore help, but there is no universal durable mutation queue or automatic retry guarantee.
+
+Priority follow-ups, if authorized separately: bounded jitter/Retry-After support for safe Google calls; explicit ambiguous-publication reconciliation; a durable retry mechanism only if operational evidence justifies it. None is claimed implemented by this review.

@@ -1,5 +1,7 @@
 # SheetOps
 
+Development UI follow-up: [paginated audit verification](docs/UI_AUDIT_VERIFICATION.md) and [retry/reconciliation behavior](docs/RETRY_BEHAVIOR.md). The new audit migration is staging-only until a separately approved production release.
+
 Internal order operations and analytics workspace with Vietnamese UI, Next.js App Router, Supabase PostgreSQL/Auth, server-enforced roles, and Google Sheets snapshot synchronization.
 
 Phase 2 implementation replaces Phase 1 role switching and localStorage business data. Historical prototype documentation is preserved in [docs/PHASE_1.md](docs/PHASE_1.md), Git history and earlier verification sections. The authoritative [PRD](docs/PRD.md) is unchanged. Current verification and external setup gates are in [docs/VERIFICATION.md](docs/VERIFICATION.md).
