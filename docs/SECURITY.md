@@ -17,3 +17,13 @@ Review found parameterized PostgREST/RPC calls, allowlisted sorts and validated 
 Remaining: Auth policy configuration audit, perimeter login/IP abuse controls, current staging role/disable/RLS/invalid-import tests, and authenticated security-header QA are BLOCKED pending staging. Never weaken production roles, reset data, or trigger real provider outages to obtain a PASS.
 
 References: [password protection](https://supabase.com/docs/guides/auth/password-security), [advisor](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+
+## Performance and visibility review, 2026-11-03
+
+The later isolated staging run supersedes the staging-blocked role/disable statement above: browser Viewer mutations and direct visibility RPC are denied; Editor Admin API/self-role escalation is denied; anonymous business and uncredentialed cron access is denied; foreign-Origin mutation is denied; disabled existing sessions lose access. Cache cancellation, identity/role partitioning, cross-tab logout and missing-session invalidation are exercised. See PERFORMANCE_ENGINEERING.md and HIDE_RESTORE.md for exact scope and current online verification limits.
+
+The visibility migration retains fresh trusted role lookup, row locking, transactional audits and narrow grants. Authorized Viewer access now intentionally includes hidden rows. Login analytics reuse uses the password-verified client's RLS; nothing is returned until the active profile check passes. No shared permission cache or service-role business reads were introduced. API responses remain private/no-store.
+
+2026-11-04 follow-up: the owner identified all 211 earlier challenges as DDoS Mitigation in Firewall Traffic. Bounded read-only Preview smoke subsequently passed without a Challenge, keeping Firewall/Deployment Protection unchanged and creating no bypass rule/grant. Local negative security/disable/cache regression was rerun successfully. Online smoke only proves the explicit Admin read/login/logout cases listed in PERFORMANCE_FOLLOWUP.md; it is not a fresh full online RBAC matrix.
+
+Live staging Advisor still reports leaked-password protection WARN and the private quota table's intentional deny-all INFO; no billing/security settings were changed to silence these. Later Preview automation received Vercel Security Checkpoint HTTP 403 before the app. This is a separate platform-access blocker, not proof of failed application RLS. The CLI-generated temporary automation grant was identified by its creation timestamp and revoked; the owner-approved 23-hour alias share remains scoped to Preview.

@@ -13,10 +13,22 @@ export class HttpError extends Error {
     super(message);
   }
 }
-export function json(data: unknown, status = 200) {
+export function json(
+  data: unknown,
+  status = 200,
+  timings: Record<string, number> = {},
+) {
   return NextResponse.json(
     { data },
-    { status, headers: { "Cache-Control": "private, no-store" } },
+    {
+      status,
+      headers: {
+        "Cache-Control": "private, no-store",
+        "Server-Timing": Object.entries(timings)
+          .map(([name, ms]) => name + ";dur=" + Math.max(0, ms).toFixed(1))
+          .join(", "),
+      },
+    },
   );
 }
 export function fail(error: unknown) {
@@ -87,13 +99,30 @@ export async function requireActor(
 ) {
   const db = await serverClient();
   const { data, error } = await db.auth.getUser();
+  if (error && (error.status === 0 || (error.status ?? 0) >= 500))
+    throw new HttpError(
+      503,
+      "Dịch vụ xác thực tạm thời không khả dụng.",
+      "AUTH_UNAVAILABLE",
+    );
   if (error || !data.user) throw new HttpError(401, "Vui lòng đăng nhập.");
+  return authorizeActor(db, data.user.id, allowed, bucket);
+}
+
+/** Called only after trusted Auth verification (getUser or signInWithPassword). */
+export async function authorizeActor(
+  db: Awaited<ReturnType<typeof serverClient>>,
+  userId: string,
+  allowed?: Role[],
+  bucket?: "orders" | "admin" | "sync",
+) {
   const result = await db
     .from("profiles")
     .select("id,full_name,email,role,is_active")
-    .eq("id", data.user.id)
+    .eq("id", userId)
     .single();
-  if (result.error || !result.data?.is_active)
+  if (result.error && result.error.code !== "PGRST116") throw result.error;
+  if (!result.data?.is_active)
     throw new HttpError(
       403,
       "Tài khoản chưa được cấp quyền hoặc đã vô hiệu hóa.",
@@ -112,4 +141,36 @@ export async function requireActor(
       );
   }
   return { db, profile };
+}
+
+/** Overlap independent RLS-protected reads; return nothing until authorization passes. */
+export async function readAsActor<T>(
+  read: (db: Awaited<ReturnType<typeof serverClient>>) => PromiseLike<T>,
+  allowed?: Role[],
+) {
+  const started = performance.now();
+  const timings: Record<string, number> = {};
+  const db = await serverClient();
+  const { data, error } = await db.auth.getUser();
+  if (error && (error.status === 0 || (error.status ?? 0) >= 500))
+    throw new HttpError(
+      503,
+      "Dịch vụ xác thực tạm thời không khả dụng.",
+      "AUTH_UNAVAILABLE",
+    );
+  if (error || !data.user) throw new HttpError(401, "Vui lòng đăng nhập.");
+  timings.auth = performance.now() - started;
+  const readStarted = performance.now();
+  const [{ profile }, result] = await Promise.all([
+    authorizeActor(db, data.user.id, allowed).then((v) => {
+      timings.profile = performance.now() - readStarted;
+      return v;
+    }),
+    Promise.resolve(read(db)).then((v) => {
+      timings.data = performance.now() - readStarted;
+      return v;
+    }),
+  ]);
+  timings.total = performance.now() - started;
+  return { profile, result, timings };
 }

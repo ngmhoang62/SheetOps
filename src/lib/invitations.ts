@@ -61,7 +61,7 @@ type InvitationAuth = {
   getUser: () => Promise<{ data: { user: unknown }; error: unknown }>;
 };
 
-/** Admin invitations return an implicit fragment even with an SSR PKCE client. */
+/** Invitations and explicit password recovery return verified implicit sessions. */
 export async function acceptInvitationSession(
   auth: InvitationAuth,
   fragment: string,
@@ -69,7 +69,8 @@ export async function acceptInvitationSession(
   const params = new URLSearchParams(fragment.replace(/^#/, ""));
   if (params.has("error") || params.has("error_code")) return false;
   if (params.has("access_token") || params.has("refresh_token")) {
-    if (params.get("type") !== "invite") return false;
+    if (!["invite", "recovery"].includes(params.get("type") ?? ""))
+      return false;
     const access_token = params.get("access_token");
     const refresh_token = params.get("refresh_token");
     if (!access_token || !refresh_token) return false;

@@ -3,7 +3,7 @@ import { loadStagingEnv } from "./staging-env";
 try {
   loadStagingEnv();
   const command = process.argv[2] ?? "start";
-  if (!["build", "start"].includes(command))
+  if (!["build", "start", "dev"].includes(command))
     throw new Error("Unsupported staging command");
   // Next loads .env.local too, but explicit process.env staging values win.
   const child = spawn(
@@ -11,7 +11,7 @@ try {
     [
       "node_modules/next/dist/bin/next",
       command,
-      ...(command === "start"
+      ...(command === "start" || command === "dev"
         ? ["--hostname", "127.0.0.1", "--port", "3001"]
         : []),
     ],

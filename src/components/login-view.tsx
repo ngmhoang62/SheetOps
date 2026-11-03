@@ -3,11 +3,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Sheet, ArrowUpRight } from "lucide-react";
 import { api } from "./resource";
-import { useWorkspace } from "./workspace-provider";
+import { type WorkspaceSession, useWorkspace } from "./workspace-provider";
 import { Button } from "./ui/button";
 import { loginNotice } from "@/lib/access-notice";
 export function LoginPage({ reason }: { reason?: string }) {
-  const { refresh } = useWorkspace();
+  const { establish } = useWorkspace();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,13 +48,12 @@ export function LoginPage({ reason }: { reason?: string }) {
             setPending(true);
             setError("");
             try {
-              await api("/api/auth/login", {
+              const session = await api<WorkspaceSession>("/api/auth/login", {
                 method: "POST",
                 body: JSON.stringify({ email, password }),
               });
-              await refresh();
+              establish(session);
               router.replace("/dashboard");
-              router.refresh();
             } catch (err) {
               setError(
                 err instanceof Error ? err.message : "Đăng nhập thất bại.",

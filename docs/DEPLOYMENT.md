@@ -27,7 +27,7 @@ The default invitation template can use `{{ .ConfirmationURL }}`. Admin invitati
 
 ## Cron
 
-The temporary 15:00 test on 2026-11-03 completed successfully at 15:37 UTC+7: 300 rows, actual cron trigger, matching output/staging/database snapshot and audit. The official schedule is restored to 0 16 * * * (23:00 UTC+7); see the latest VERIFICATION.md evidence. No Phase 3 code was merged into main.
+The temporary 15:00 test on 2026-11-03 completed successfully at 15:37 UTC+7: 300 rows, actual cron trigger, matching output/staging/database snapshot and audit. The official schedule is restored to 0 16 * * * (23:00 UTC+7); see the latest VERIFICATION.md evidence. Later, the owner-approved Phase 3 PR #1 was merged as 0506323 and production deployment dpl_7S3jw2x9va7pXU6tZWACfkQkYGWS became READY in sin1. The official schedule is retained.
 
 The normal schedule for `/api/cron/daily-export` is `0 16 * * *`, equivalent to 23:00 Asia/Ho_Chi_Minh. The host sends `Authorization: Bearer <CRON_SECRET>`; query-string credentials are not supported. Cookie-authenticated users cannot call this endpoint without the cron secret. Manual and scheduled exports share the same service and database lock.
 
@@ -43,4 +43,12 @@ Set up backups, restore verification and a rollback plan before real data. Rolli
 
 ## Phase 3 Preview
 
-See STAGING_SETUP.md for all Preview variables and exact redirect configuration. Existing production secrets are not copied. Missing independent staging settings intentionally return 503. Vercel dev pushes should create Preview deployments in the existing project; automatic Cron runs only in Production. Region sin1 in dev is proposed for staging latency alignment and remains subject to QA/release approval.
+See STAGING_SETUP.md for all Preview variables and exact redirect configuration. Existing production secrets are not copied. Missing independent staging settings intentionally return 503. Vercel dev pushes should create Preview deployments in the existing project; automatic Cron runs only in Production. Both staging Preview and the approved production release now run in sin1, aligned with Singapore PostgreSQL. See PHASE_3_VERIFICATION.md for actual deployment evidence.
+
+## Later performance/visibility release gate
+
+Update 2026-11-04: owner approved final release through PR #2. Both visibility/audit migrations are now applied once to production with preserved data; see RELEASE_2026_11_04.md for actual recorded versions, checks and remaining browser-verification limit. The staging-only status in the following historical gate is superseded by that record.
+
+The dev performance work requires the reviewed order_visibility migration before a production rollout. It has only been applied on independent staging. See HIDE_RESTORE.md for grants, compatibility and migration-history checks, and PERFORMANCE_ENGINEERING.md for measured acceptance/remaining blockers. Do not merge this work or migrate production under the earlier PR #1 approval.
+
+Already-confirmed invited accounts use an explicitly requested password-recovery email to finish setup when the original one-use invite was consumed; they are not deleted/recreated. The password page accepts verified invite/recovery sessions, checks the active profile, saves the password, logs out, and goes to /login. Never change the authentication mode to Magic Link or log the session fragment. Preview SSO and platform Security Checkpoint are separate layers; keep protection enabled and do not interpret a challenge HTML response as an application's JSON 403.

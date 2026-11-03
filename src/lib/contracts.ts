@@ -63,6 +63,7 @@ export const filterSchema = z
   );
 export const listSchema = filterSchema.and(
   z.object({
+    visibility: z.enum(["all", "active", "hidden"]).default("all"),
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(50).default(20),
     sort: z

@@ -1,5 +1,9 @@
 # SheetOps
 
+Owner-approved production release (2026-11-04): [release evidence and trial instructions](docs/RELEASE_2026_11_04.md), [PR #2](https://github.com/ngmhoang62/SheetOps/pull/2). Earlier staging-only release gates below are historical; consult this release record and PR status before reapplying migrations.
+
+Development UI follow-up: [paginated audit verification](docs/UI_AUDIT_VERIFICATION.md) and [retry/reconciliation behavior](docs/RETRY_BEHAVIOR.md). The new audit migration is staging-only until a separately approved production release.
+
 Internal order operations and analytics workspace with Vietnamese UI, Next.js App Router, Supabase PostgreSQL/Auth, server-enforced roles, and Google Sheets snapshot synchronization.
 
 Phase 2 implementation replaces Phase 1 role switching and localStorage business data. Historical prototype documentation is preserved in [docs/PHASE_1.md](docs/PHASE_1.md), Git history and earlier verification sections. The authoritative [PRD](docs/PRD.md) is unchanged. Current verification and external setup gates are in [docs/VERIFICATION.md](docs/VERIFICATION.md).
@@ -63,8 +67,12 @@ docs/                    architecture, database/API/setup/deployment and evidenc
 
 [.env.example](.env.example) lists public Supabase URL/key and server-only Supabase secret, service-account identity/private key, spreadsheet ID, cron secret, business timezone and canonical `APP_ORIGIN`. Do not prefix privileged credentials with `NEXT_PUBLIC_`. Local values are not automatically copied to Vercel.
 
-Production has an Admin, 300 imported synthetic orders, working Sheets manual export, and verified invitation/password/Viewer/disable UAT. Scheduled cron acceptance is tracked separately; see docs/PHASE_2_ACCEPTANCE.md.
+Production has an Admin, 300 imported synthetic orders, working Sheets manual export, and verified invitation/password/Viewer/disable UAT. Actual scheduled 300-row cron export passed on 2026-11-03; the official schedule is 23:00 UTC+7. See docs/PHASE_2_ACCEPTANCE.md.
 
-Phase 3 development is on dev. Push dev → isolated Vercel Preview → staging QA → PR to main → owner approval → production. See [Phase 3 verification](docs/PHASE_3_VERIFICATION.md), [release process](docs/RELEASE_PROCESS.md), [security](docs/SECURITY.md) and [backup/restore](docs/BACKUP_RESTORE.md). No automatic migration or seed occurs on deploy. Never reuse production credentials for staging; cloud cleanup suites now refuse the production ref even when it is empty.
+Phase 3 PR #1 was owner-approved, reviewed and merged as 0506323; production is READY in sin1. The first encrypted production backup is in the private SheetOps Drive folder; weekly Sunday 23:00 local scheduling requires Codex/Docker/computer availability. Full Supabase/Auth restore and main branch protection remain open. Development continues on dev. Push dev → isolated Vercel Preview → staging QA → PR to main → owner approval → production. See [Phase 3 verification](docs/PHASE_3_VERIFICATION.md), [release process](docs/RELEASE_PROCESS.md), [security](docs/SECURITY.md) and [backup/restore](docs/BACKUP_RESTORE.md). No automatic migration or seed occurs on deploy. Never reuse production credentials for staging; cloud cleanup suites now refuse the production ref even when it is empty.
 
 Staging local setup: copy `.env.staging.example` to ignored `.env.staging.local`, fill independent credentials, then run `npm run build:staging` and `npm run start:staging`. Opt-in integration scripts explicitly load this file and never fall back to `.env.local`. After fixture cleanup, a retained owner QA Admin may exist: review that state before rerunning destructive fixture suites. `RUN_RESTORE_DRILL=1 npm run test:restore` exercises synthetic PostgreSQL backup/encryption/restore in a disposable network-isolated Docker container; it never accesses cloud data.
+
+Later dev work adds session-private query reuse, verified-login analytics reuse, auditable Hide/Restore and atomic Sheets staging replacement. See [measured results and blockers](docs/PERFORMANCE_RESULTS.md), [investigation](docs/PERFORMANCE_ENGINEERING.md) and [visibility/migration contract](docs/HIDE_RESTORE.md). Warm navigation targets are met in the measured series; fresh login/API P95 and full online regression are not fully accepted. This work has not been released to main. Production requires a separately approved migration/release. Retained staging now has 300 orders and two QA accounts; never run an empty-database cleanup suite there.
+
+[Latest verification follow-up](docs/PERFORMANCE_FOLLOWUP.md): local regression and bounded Preview smoke passed after identifying the earlier DDoS Mitigation challenge. Use [the bounded testing policy](docs/PREVIEW_TESTING.md); full mutation E2E stays on port 3001 and Preview uses a separate paced read-only smoke.

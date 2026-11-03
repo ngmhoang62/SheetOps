@@ -4,11 +4,11 @@
 
 Production has a permanent Admin, 300 Orders, configured Sheets/SMTP and verified invitation/password/Viewer/disable UAT. Manual 300-row export hashes match staging/output/database. Earlier Phase 2 setup blockers are historical, not current instructions.
 
-Independent staging project/Auth users/Sheet/credentials are unavailable. Preview intentionally denies access with 503 until configured; staging CRUD/RLS/reliability/2000-order/load/restore acceptance is BLOCKED. See STAGING_SETUP.md and PHASE_3_VERIFICATION.md. No billing changes or production data copies were made.
+Independent Singapore staging and a separate Sheet are configured. Owner confirmed online Preview login/Sheets connection; 22 cloud tests, 18 browser E2E cases and four real Sheets failure assertions passed. Synthetic 2,000-row restore passed. This is not a ten-user load benchmark or full Supabase/Auth recovery proof. Preview rejects missing/production backend configuration. No production data was copied into staging. See PHASE_3_VERIFICATION.md.
 
-Scheduled production cron remains PENDING until actual cron-triggered evidence. The temporary 15:00 test on 2026-11-03 must finish its observation window before main is restored to 23:00 by the authorized monitor. dev already carries the official schedule. Production change is maintenance only, not a Phase 3 release.
+Actual scheduled production export succeeded on 2026-11-03 at 15:37 UTC+7 with 300 rows and matching hashes. Cron was restored to 0 16 * * * (23:00 UTC+7), retained in the owner-approved Phase 3 release 0506323. Future scheduled executions still require monitoring.
 
-Leaked password protection is a current Advisor WARN; the verified Free plan cannot enable this Pro+ feature. Managed daily backups/PITR are not claimed available. Owner-controlled encrypted backups and isolated restore drill remain required. GitHub connector shows admin permission/public repository; protection settings could not be read/written by the exposed connector, and unauthenticated REST requires authentication. Owner must confirm protection in Settings; no lockout-inducing policy was applied.
+Leaked password protection is a current Advisor WARN; the verified Free plan cannot enable this Pro+ feature. Managed daily backups/PITR are not claimed available. First production encrypted backup and private Drive upload passed; weekly local Sunday 23:00 job is configured. Full Supabase/Auth recovery and its first weekly execution remain unverified. Authenticated GitHub API confirmed main is not protected (404 Branch not protected); enable required verify without owner lockout. No policy was changed.
 
 ## MVP operational limits
 
@@ -18,7 +18,7 @@ Leaked password protection is a current Advisor WARN; the verified Free plan can
 - Sync uses a single persistent running-run lock, ten-minute abandonment detection, a 90-second publish budget and a 120-second function limit. This bounds normal overlap but is not an atomic transaction spanning PostgreSQL and Google Sheets. A paused local worker that outlives the platform assumptions requires operator inspection.
 - Staging failures preserve the last successful output. A network failure after an accepted publish can leave newer output with a failed/unknown run; inspect readback and retry. There is no claim of exactly-once external side effects.
 - Cron's per-business-date key is retained even after failure; manual retry uses a fresh key. Vercel Hobby scheduling is approximate within the hour.
-- Audit history is persistent and database-triggered, but retention, offsite log archival, full disaster-recovery automation and restore drills are Phase 3 work. No backups were configured or claimed by this task.
+- Audit history is persistent and database-triggered. Encrypted weekly backups are local Codex automation and need the computer/Docker online; they are not an always-on cloud SLA. Keys share the private Drive folder by explicit demo-owner choice. Full Auth restore, automated retention and offsite log archival remain incomplete.
 - The UI refetches on navigation/mutations; it does not implement real-time cross-user subscriptions. Every API/RLS operation still checks the current profile independently of visible UI.
 - User invitation and profile creation cross Auth and PostgreSQL boundaries. A profile-provisioning failure grants no application access but can leave an invited Auth user requiring Admin recovery; there is no cross-service transaction or invitation resend workflow.
 

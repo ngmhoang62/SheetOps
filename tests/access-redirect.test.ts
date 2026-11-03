@@ -9,7 +9,7 @@ vi.mock("@supabase/ssr", () => ({ createServerClient: vi.fn() }));
 describe("revoked account navigation", () => {
   const signOut = vi.fn().mockResolvedValue({ error: null });
   const single = vi.fn();
-  const getUser = vi.fn();
+  const getClaims = vi.fn();
   beforeEach(() => {
     vi.stubEnv(
       "NEXT_PUBLIC_SUPABASE_URL",
@@ -17,10 +17,15 @@ describe("revoked account navigation", () => {
     );
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-only");
     signOut.mockClear();
-    getUser.mockResolvedValue({ data: { user: { id: "test-viewer" } } });
+    getClaims.mockClear();
+    single.mockClear();
+    getClaims.mockResolvedValue({
+      data: { claims: { sub: "test-viewer" } },
+      error: null,
+    });
     single.mockResolvedValue({ data: { role: "viewer", is_active: false } });
     const db = {
-      auth: { getUser, signOut },
+      auth: { getClaims, signOut },
       from: () => ({ select: () => ({ eq: () => ({ single }) }) }),
     };
     vi.mocked(createServerClient).mockReturnValue(
@@ -63,7 +68,7 @@ describe("revoked account navigation", () => {
   it("handles client-detected revocation without looping on the login page", async () => {
     const url = "https://sheetops.vercel.app/login?reason=account_disabled";
     expect((await proxy(new NextRequest(url))).status).toBe(307);
-    getUser.mockResolvedValue({ data: { user: null } });
+    getClaims.mockResolvedValue({ data: null, error: null });
     const result = await proxy(new NextRequest(url));
     expect(result.status).toBe(200);
     expect(result.headers.get("location")).toBeNull();
@@ -74,6 +79,7 @@ describe("revoked account navigation", () => {
     );
     expect(result.status).toBe(200);
     expect(single).not.toHaveBeenCalled();
+    expect(getClaims).not.toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
   });
   it("keeps active Viewers signed in when an admin page returns 403", async () => {
@@ -88,10 +94,33 @@ describe("revoked account navigation", () => {
         .status,
     ).toBe(200);
   });
+  it("rejects an invalid or expired signature before reading profiles", async () => {
+    getClaims.mockResolvedValue({
+      data: null,
+      error: new Error("invalid signature"),
+    });
+    const result = await proxy(
+      new NextRequest("https://sheetops.vercel.app/orders"),
+    );
+    expect(result.status).toBe(307);
+    expect(single).not.toHaveBeenCalled();
+  });
   it("shows only known static login messages", () => {
     expect(loginNotice("account_disabled")).toContain("vô hiệu hóa");
     expect(loginNotice("account_unavailable")).toContain("chưa được cấp quyền");
     expect(loginNotice("session_expired")).toContain("hết hạn");
     expect(loginNotice("<script>untrusted</script>")).toBe("");
+  });
+  it("does not sign out a valid user when profile storage is unavailable", async () => {
+    single.mockResolvedValue({
+      data: null,
+      error: { code: "", message: "transport failure" },
+    });
+    const result = await proxy(
+      new NextRequest("https://sheetops.vercel.app/orders"),
+    );
+    expect(result.status).toBe(503);
+    expect(result.headers.get("location")).toBeNull();
+    expect(signOut).not.toHaveBeenCalled();
   });
 });

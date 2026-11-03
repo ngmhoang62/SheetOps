@@ -1,6 +1,14 @@
 # Phase 3 evidence — 2026-11-03
 
-Status: **IMPLEMENTED — ENVIRONMENT VERIFICATION PENDING**. Independent staging, owner online login/Sheets QA, integration tests, synthetic PostgreSQL restore, actual scheduled production cron and the first encrypted offsite production backup are verified. Full Supabase/Auth disaster recovery and branch-protection confirmation remain open. The owner explicitly authorized the current PR release; production deployment evidence will be recorded after merge.
+Status: **IMPLEMENTED — ENVIRONMENT VERIFICATION PENDING**. Independent staging, owner online login/Sheets QA, integration tests, synthetic PostgreSQL restore, actual scheduled production cron and the first encrypted offsite production backup are verified. Full Supabase/Auth disaster recovery and branch-protection confirmation remain open. The owner explicitly authorized the current PR release; PR #1 was merged with owner approval; production deployment is verified below.
+
+## Owner-approved production release verification
+
+- PR #1 reviewed with an honest agent COMMENT (review 5749612230), not independent self-approval. Final reviewed head 36c6f1d841db3f4c5a97ad0db7ac35ab45586a39 had both Actions 41609653902 (push) and 41609662821 (pull_request) SUCCESS. Matching Preview dpl_8SaLaeum8f1WCnqDo8ubhjB7hhcS READY, sin1.
+- Merge commit 0506323f068833bc55e6718350b7f2798797255e preserves history. Production dpl_7S3jw2x9va7pXU6tZWACfkQkYGWS READY at canonical https://sheetops.vercel.app, main, sin1. Official cron 0 16 * * * remains in the released configuration; no new scheduled execution was claimed during this release. Deployment source-file fetch returned 404; direct post-release scheduler registration was not separately inspected.
+- Read-only HTTP/browser smoke PASS: login 200 and visible Vietnamese login form, protected dashboard 307 to /login, anonymous orders/users APIs 401, missing-token cron 401, foreign-origin order request 403, DENY/nosniff response headers. Browser's sole console error was the expected anonymous /api/session 401. Screenshot is an ignored local artifact at output/playwright/production-release-login.png. Chrome first failed under the Windows sandbox; read-only retry outside sandbox passed.
+- Before/after production counts matched exactly: Orders=300, Auth users=2, audit=307, sync_runs=3. No migration, seed, authenticated export/import, business mutation or cleanup was run during release. Runtime error/fatal count query scoped to this deployment and the first ten minutes returned no groups; this is a short observation window, not ongoing monitoring.
+- Authenticated GitHub protection check returned 404 Branch not protected. CI gates were checked before this merge, but they are not yet enforced as required repository checks. No protection/billing policy was changed. Local main and dev fast-forwarded to the release commit; final handover documentation continues on dev.
 
 ## Owner-approved release and Drive backup follow-up
 

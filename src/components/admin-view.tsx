@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
+import { AuditView } from "./audit-view";
 import { toast } from "sonner";
 import { roleLabels, roles, type Role } from "@/lib/domain";
 import type { Profile } from "@/lib/contracts";
 import { formatTime } from "@/lib/analytics";
 import { useWorkspace } from "./workspace-provider";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, useResource } from "./resource";
 import { ConfirmDialog, EmptyState, PageHeading } from "./shared";
 import { Button } from "./ui/button";
@@ -130,7 +132,7 @@ export function UsersView() {
                 );
                 toast.info(result.message);
                 setOpen(false);
-                changed();
+                changed("users");
               } catch (e) {
                 setError(message(e));
               } finally {
@@ -221,7 +223,7 @@ export function UsersView() {
                 ),
               },
             );
-            changed();
+            changed("users");
             setChange(null);
             toast.success("Đã cập nhật quyền.");
           } catch (e) {
@@ -253,7 +255,13 @@ type Preview = {
 export function SyncView() {
   const { revision, changed } = useWorkspace();
   const runs = useResource<Run[]>("/api/sync/runs", revision);
-  const [connection, setConnection] = useState<{ tabs: string[] } | null>(null);
+  const client = useQueryClient();
+  const connectionResource = useResource<{ tabs: string[] }>(
+    "/api/sync/connection",
+    0,
+    false,
+  );
+  const connection = connectionResource.data;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -264,7 +272,10 @@ export function SyncView() {
     setError("");
     try {
       if (kind === "connection") {
-        setConnection(await api("/api/sync/connection"));
+        client.setQueryData(
+          ["/api/sync/connection"],
+          await api("/api/sync/connection"),
+        );
         toast.success("Đã kiểm tra kết nối thực tế.");
       }
       if (kind === "preview")
@@ -272,7 +283,7 @@ export function SyncView() {
       if (kind === "export") {
         await api("/api/sync/export", { method: "POST" });
         toast.success("Đã xuất và kiểm chứng dữ liệu.");
-        changed();
+        changed("sync");
       }
       if (kind === "import" && preview) {
         await api("/api/sync/import/confirm", {
@@ -281,12 +292,12 @@ export function SyncView() {
         });
         setPreview(null);
         setConfirm(false);
-        changed();
+        changed("sync");
         toast.success("Đã nhập dữ liệu vào PostgreSQL.");
       }
     } catch (e) {
       setError(message(e));
-      changed();
+      changed("sync");
     } finally {
       setPending(false);
     }
@@ -466,19 +477,10 @@ export function SyncView() {
     </>
   );
 }
-type Audit = {
-  id: string;
-  actor_id: string | null;
-  action: string;
-  resource_type: string;
-  resource_id: string;
-  created_at: string;
-};
 export function SettingsView() {
-  const { organization, revision, refresh, changed } = useWorkspace();
+  const { organization, refresh, changed } = useWorkspace();
   const [name, setName] = useState(organization);
   const [pending, setPending] = useState(false);
-  const audit = useResource<Audit[]>("/api/audit", revision);
   return (
     <>
       <PageHeading
@@ -501,7 +503,7 @@ export function SettingsView() {
                 body: JSON.stringify({ organization: name }),
               });
               await refresh();
-              changed();
+              changed("settings");
               toast.success("Đã lưu cài đặt.");
             } catch (e) {
               toast.error(message(e));
@@ -532,61 +534,7 @@ export function SettingsView() {
           </Button>
         </form>
       </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <h2>Nhật ký kiểm toán</h2>
-          <span className="outline-pill">100 sự kiện gần nhất</span>
-        </div>
-        <Notice {...audit} />
-        {audit.data?.length ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Thời gian (UTC+7)</th>
-                  <th>Người thực hiện</th>
-                  <th>Thao tác</th>
-                  <th>Đối tượng</th>
-                  <th>Mã đối tượng</th>
-                </tr>
-              </thead>
-              <tbody>
-                {audit.data.map((a) => (
-                  <tr key={a.id}>
-                    <td>{formatTime(a.created_at)}</td>
-                    <td>{a.actor_id ?? "Hệ thống"}</td>
-                    <td>
-                      {{
-                        created: "Tạo",
-                        updated: "Cập nhật",
-                        deleted: "Xóa mềm",
-                        import: "Nhập Sheets",
-                        export: "Xuất Sheets",
-                      }[a.action] ?? a.action}
-                    </td>
-                    <td>
-                      {{
-                        orders: "Đơn hàng",
-                        profiles: "Người dùng",
-                        workspace_settings: "Cài đặt",
-                        sync_runs: "Đồng bộ",
-                      }[a.resource_type] ?? a.resource_type}
-                    </td>
-                    <td className="resource-id">{a.resource_id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          !audit.loading && (
-            <EmptyState
-              title="Chưa có sự kiện"
-              description="Các thao tác được ghi trên PostgreSQL."
-            />
-          )
-        )}
-      </section>
+      <AuditView />
     </>
   );
 }

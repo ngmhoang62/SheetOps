@@ -1,5 +1,11 @@
 # Operator runbook
 
+## Preview traffic challenges during QA
+
+Distinguish Vercel HTML Security Checkpoint with x-vercel-mitigated=challenge from SheetOps JSON 401/403. Inspect Firewall Traffic with the exact UTC+7 window and Rule/Reason; an empty attack-status summary alone does not disprove individual mitigation events. The owner identified the 2026-11-03 22:46–22:47 spike as DDoS Mitigation. Keep Firewall and Deployment Protection enabled.
+
+Run full mutation/Sheets regression locally against isolated staging. Preview uses the bounded smoke in PREVIEW_TESTING.md: one process, paced starts, separate API/asset lanes, hard budgets and no automatic Challenge retry. Calibrate locally first. A challenge is infrastructure BLOCKED; a test-budget stop is a harness limit; an unexplained assertion is FAIL pending investigation. Do not label all three as application RBAC failure or generate bypass grants to make tests pass. Record passed checks and unexecuted checks separately. PERFORMANCE_FOLLOWUP.md contains the later successful controlled smoke and retained-data evidence.
+
 Use existing Vercel runtime logs, Supabase Auth/Postgres logs and persistent sync_runs/audit_logs. Record run ID, UTC time, trigger, row count, snapshot hash and sanitized error, never bearer tokens/keys. Monitor failed syncs, missing daily success, >10-minute running leases, latency, 429/5xx and backup age. UI shows only recent records; history is in PostgreSQL.
 
 | Incident             | Action                                                                                                                                                                                                                       |

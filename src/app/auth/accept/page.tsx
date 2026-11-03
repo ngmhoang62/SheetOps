@@ -6,7 +6,7 @@ import { browserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/components/workspace-provider";
 export default function Accept() {
-  const { refresh } = useWorkspace();
+  const { establish, logout } = useWorkspace();
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +31,9 @@ export default function Accept() {
         if (!valid) return false;
         // Fresh server-side profile check also rejects disabled/unprovisioned users.
         const response = await fetch("/api/session", { cache: "no-store" });
-        return response.ok;
+        if (!response.ok) return false;
+        establish((await response.json()).data);
+        return true;
       })().catch(() => false);
     }
     void initialization.current.then((valid) => {
@@ -45,7 +47,7 @@ export default function Accept() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [establish]);
   return (
     <section className="login-form">
       <h1>Thiết lập mật khẩu</h1>
@@ -64,9 +66,16 @@ export default function Accept() {
             });
             if (error) throw error;
             setPassword("");
-            await refresh();
-            router.replace("/dashboard");
-            router.refresh();
+            setReady(false);
+            try {
+              await logout();
+            } catch {
+              setError(
+                "Mật khẩu đã được lưu nhưng chưa đăng xuất được. Hãy thử đăng xuất lại trước khi đăng nhập bằng mật khẩu mới.",
+              );
+              return;
+            }
+            router.replace("/login?reason=password_set");
           } catch {
             setError(
               "Không thể đặt mật khẩu. Mật khẩu cần đủ mạnh và khác mật khẩu cũ.",

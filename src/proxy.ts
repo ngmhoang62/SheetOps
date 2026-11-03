@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { backendTarget } from "./lib/environment";
+import { upstreamFetch } from "./lib/supabase/transport";
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -21,7 +22,14 @@ export async function proxy(request: NextRequest) {
       headers: { "Cache-Control": "no-store" },
     });
   }
+  // Route handlers authenticate with their own cookie-aware client. Avoid a second
+  // Auth network round trip here; cron also owns its bearer authentication.
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  }
   const db = createServerClient(url, key, {
+    global: { fetch: upstreamFetch },
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(values, headers) {
@@ -36,9 +44,15 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  const {
-    data: { user },
-  } = await db.auth.getUser();
+  // Supabase recommends signature-verified claims for page protection.
+  // Application role/disable state is still read fresh below on every request.
+  const { data, error } = await db.auth.getClaims();
+  if (error && (error.status === 0 || (error.status ?? 0) >= 500))
+    return new NextResponse(
+      "Dịch vụ xác thực tạm thời không khả dụng. Vui lòng thử lại.",
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
+    );
+  const userId = error ? undefined : data?.claims.sub;
   const path = request.nextUrl.pathname;
   const publicPath = path === "/login" || path.startsWith("/auth/");
   // APIs own their structured authentication and cron checks; never authorize from client state.
@@ -48,7 +62,7 @@ export async function proxy(request: NextRequest) {
       request.nextUrl.searchParams.get("reason") ?? "",
     );
   if (!path.startsWith("/api/") && (!publicPath || revokedLogin)) {
-    if (!user) {
+    if (!userId) {
       if (publicPath) {
         response.headers.set("Cache-Control", "private, no-store");
         return response;
@@ -57,11 +71,21 @@ export async function proxy(request: NextRequest) {
       response.cookies.getAll().forEach((c) => r.cookies.set(c));
       return r;
     }
-    const { data: p } = await db
+    const { data: p, error: profileError } = await db
       .from("profiles")
       .select("role,is_active")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
+    if (profileError && profileError.code !== "PGRST116") {
+      const unavailable = new NextResponse(
+        "Không thể kiểm tra quyền truy cập lúc này. Vui lòng thử lại.",
+        { status: 503, headers: { "Cache-Control": "private, no-store" } },
+      );
+      response.cookies
+        .getAll()
+        .forEach((cookie) => unavailable.cookies.set(cookie));
+      return unavailable;
+    }
     if (!p?.is_active) {
       // End only this browser's session; other users/sessions are untouched.
       await db.auth.signOut({ scope: "local" }).catch(() => undefined);

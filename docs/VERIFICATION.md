@@ -164,4 +164,6 @@ Secret review compared actual local server-secret values against all version-con
 
 ### Post-push deployment evidence
 
+Later evidence is tracked separately: PHASE_2_ACCEPTANCE.md records subsequent production acceptance; PERFORMANCE_RESULTS.md records the current dev-only performance/visibility work, 300 retained staging orders, 93 unit tests and current online verification blockers. Historical empty-fixture counts and initial owner-setup blockers below/above are not the present environment state.
+
 Vercel deployment `dpl_BLEr21ud2Aw1bvUvpKKjKffv6LsV` reached **READY** for production branch main at application checkpoint `edbfcc16b937c6c012d0f50f4b08a6d3fdddf4c3`. [Deployment inspection](https://vercel.com/nguyen-minh-hoang-s-team/sheetops/BLEr21ud2Aw1bvUvpKKjKffv6LsV). This closes the cloud build/deploy check for that checkpoint, not the owner-configuration, populated-source import, inbox-delivery or scheduled-runtime gates above. Subsequent documentation-only commits do not change application behavior.
