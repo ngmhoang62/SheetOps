@@ -48,8 +48,7 @@ Requests captured: 124. Raw sanitized samples remain under ignored output/perfor
 
 | Metric               |   N | P50 ms | P95 ms |
 | -------------------- | --: | -----: | -----: |
-| login_data           |   5 |   1627 |    N/A |
-| login_form_to_data   |   1 |  30012 |    N/A |
+| login_data (success) |   4 |   1360 |    N/A |
 | Đơn hàng_ui          |   1 |    281 |    N/A |
 | Đơn hàng_data        |   1 |   1256 |    N/A |
 | Báo cáo_ui           |   1 |     83 |    N/A |
@@ -70,7 +69,7 @@ Requests captured: 21. Raw sanitized samples remain under ignored output/perform
 1. useResource resets data to null on every mount/refetch; no reuse on warm navigation. Each warm visit pays a fresh authenticated network round trip.
 2. Loading is conflated with background refreshing; orders replaces its entire table, losing usable previous content.
 3. Mutations bump one global revision, refetching unrelated resources; no selective cache invalidation or deduplication.
-4. Auth and upstream network are variable. Login has warm median 1627 ms across five local samples, but an earlier cold sample was 6697 ms; no P95 login target claimed. Existing read APIs retain trusted verification.
+4. Auth and upstream network are variable. Four successful login samples have median 1360 ms; a fifth attempt failed and its observer timeout is not a latency success. An earlier first sample was 6697 ms; no P95 login target claimed. Existing read APIs retain trusted verification.
 5. Profile polling/focus and global workspace values can rerender consumers; do not infer this dominates network without a render trace.
 6. PostgreSQL plans under authenticated RLS: list 2.087 ms, exact count 0.920 ms, completed monthly aggregation 0.445 ms at 300 rows. Seq scans on this scale are reasonable; role evaluation appears as a single InitPlan, not per-row network calls. No index justified yet.
 7. Initial loading fallback and absent explicit full route prefetch can surface during navigation; preserve route authorization while testing prefetch effect.

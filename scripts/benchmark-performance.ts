@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { chromium, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { verifyResponsive } from "./responsive-check";
 loadStagingEnv();
 assertStaging(process.env);
 const base = process.env.PERF_BASE_URL || "http://127.0.0.1:3001";
@@ -22,10 +23,17 @@ const service = createClient(
 const run = randomUUID(),
   ids: string[] = [];
 let userId = "";
+let phase = "preflight";
 let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
 const samples: Record<string, number[]> = {};
-const responses: { path: string; ms: number; bytes: number; status: number }[] =
-  [];
+const responses: {
+  path: string;
+  ms: number;
+  bytes: number;
+  status: number;
+  serverTiming: string;
+}[] = [];
+const loginAttempts: { ms: number; status: string }[] = [];
 function record(k: string, v: number) {
   (samples[k] ??= []).push(Math.round(v));
 }
@@ -53,7 +61,8 @@ async function main() {
       role: "admin",
       is_active: true,
     });
-    if (profile.error) throw Error("Fixture profile unavailable");
+    if (profile.error)
+      throw Error("Fixture profile unavailable: " + profile.error.code);
     const c = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -73,7 +82,8 @@ async function main() {
           ids.push(id);
           return {
             id,
-            order_code: "PERF-" + run.slice(0, 8) + "-" + (offset + j),
+            order_code:
+              "PERF-" + run.slice(0, 8).toUpperCase() + "-" + (offset + j),
             customer_name: o.customer_name,
             order_date: o.order_date,
             status: o.status,
@@ -83,9 +93,10 @@ async function main() {
         },
       );
       const r = await c.from("orders").insert(rows);
-      if (r.error) throw Error("Fixture seed failed");
+      if (r.error) throw Error("Fixture seed failed: " + r.error.code);
     }
     browser = await chromium.launch({ channel: "chrome", headless: true });
+    phase = "browser login";
     const context = await browser.newContext({
       viewport: { width: 1366, height: 900 },
     });
@@ -114,6 +125,7 @@ async function main() {
         ms: Math.round(r.request().timing().responseEnd),
         bytes: (await r.body().catch(() => Buffer.alloc(0))).byteLength,
         status: r.status(),
+        serverTiming: r.headers()["server-timing"] ?? "",
       });
     });
     await page.goto(base + "/login");
@@ -123,49 +135,60 @@ async function main() {
         .isVisible())
     )
       throw Error("Preview protection blocks app access");
-    const summary = page
-      .waitForResponse(
-        (r) => r.url().includes("/api/dashboard/summary") && r.ok(),
-      )
-      .catch(() => null);
     const start = performance.now();
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
     const submitted = performance.now();
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     await page.waitForURL("**/dashboard");
-    await summary;
+    await expect(page.getByTestId("Tổng đơn hàng")).toHaveText(
+      count.toLocaleString("vi-VN"),
+    );
     await expect(
       page.getByText("Đang tải thống kê…", { exact: true }),
     ).toHaveCount(0);
     record("login_data", performance.now() - submitted);
+    loginAttempts.push({
+      ms: Math.round(performance.now() - submitted),
+      status: "success",
+    });
     record("login_form_to_data", performance.now() - start);
     for (
       let sample = 1;
       sample < Number(process.env.PERF_LOGIN_SAMPLES || 1);
       sample++
     ) {
-      await context.request.post(base + "/api/auth/logout", {
-        headers: { Origin: base },
+      const loggedOut = await context.request.post(base + "/api/auth/logout", {
+        headers: {
+          Origin: base,
+          ...(process.env.VERCEL_OIDC_TOKEN
+            ? {
+                "x-vercel-trusted-oidc-idp-token":
+                  process.env.VERCEL_OIDC_TOKEN,
+              }
+            : {}),
+        },
       });
+      if (!loggedOut.ok()) throw Error("Data logout failed");
       await page.goto(base + "/login");
       await page.getByLabel("Email", { exact: true }).fill(email);
       await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
-      const response = page
-        .waitForResponse(
-          (r) => r.url().includes("/api/dashboard/summary") && r.ok(),
-        )
-        .catch(() => null);
       const t = performance.now();
       await page
         .getByRole("button", { name: "Đăng nhập", exact: true })
         .click();
       await page.waitForURL("**/dashboard");
-      await response;
+      await expect(page.getByTestId("Tổng đơn hàng")).toHaveText(
+        count.toLocaleString("vi-VN"),
+      );
       await expect(
         page.getByText("Đang tải thống kê…", { exact: true }),
       ).toHaveCount(0);
       record("login_data", performance.now() - t);
+      loginAttempts.push({
+        ms: Math.round(performance.now() - t),
+        status: "success",
+      });
     }
     const routes = [
       ["Đơn hàng", "Đơn hàng", "/api/orders"],
@@ -177,6 +200,7 @@ async function main() {
     ];
     for (let cycle = 0; cycle < Number(process.env.PERF_CYCLES || 20); cycle++)
       for (const [label, heading, endpoint] of routes) {
+        phase = "navigation:" + label;
         const t = performance.now();
         const response =
           process.env.PERF_CACHE_MODE === "1"
@@ -204,8 +228,96 @@ async function main() {
             exact: true,
           }),
         ).toHaveCount(0);
+        await expect(page.locator("main [role=alert]")).toHaveCount(0);
+        if (["Tổng quan", "Báo cáo"].includes(label))
+          await expect(page.getByTestId("Tổng đơn hàng")).toHaveText(
+            count.toLocaleString("vi-VN"),
+          );
+        if (label === "Đơn hàng")
+          await expect(page.locator("tbody tr").first()).toBeVisible();
         record(label + "_data", performance.now() - t);
+        if (label === "Người dùng") {
+          const button = page.getByRole("button", {
+            name: "Mời người dùng",
+            exact: true,
+          });
+          await expect(button).toBeVisible();
+          const started = performance.now();
+          await button.click();
+          await expect(page.getByRole("dialog")).toBeVisible();
+          record("invitation_dialog_ack", performance.now() - started);
+          await page
+            .getByRole("dialog")
+            .getByRole("button", { name: "Hủy", exact: true })
+            .click();
+        }
       }
+    for (
+      let sample = 0;
+      sample < Number(process.env.PERF_API_SAMPLES || 0);
+      sample++
+    ) {
+      phase = "authenticated API";
+      for (const endpoint of [
+        "/api/session",
+        "/api/orders",
+        "/api/dashboard/summary",
+        "/api/users",
+        "/api/sync/runs",
+        "/api/audit",
+        ...(count === 2000
+          ? [
+              "/api/orders?search=PERF&sort=total_amount&direction=desc&page=1",
+              "/api/orders?search=PERF&sort=total_amount&direction=desc&page=2",
+              "/api/orders?status=completed&sort=order_code&direction=asc",
+              "/api/orders?status=pending&from=2026-01-01&to=2026-12-31&page=2",
+            ]
+          : []),
+      ]) {
+        const t = performance.now();
+        const response = await page.evaluate(async (endpoint) => {
+          const r = await fetch(endpoint, { cache: "no-store" });
+          const body = await r.text();
+          if (r.ok && endpoint.startsWith("/api/orders")) {
+            const data = JSON.parse(body).data;
+            if (
+              data.orders.length > 20 ||
+              new Set(data.orders.map((row: { id: string }) => row.id)).size !==
+                data.orders.length
+            )
+              throw Error("Invalid server pagination");
+            if (endpoint.includes("sort=total_amount"))
+              for (let i = 1; i < data.orders.length; i++)
+                if (
+                  BigInt(data.orders[i - 1].total_amount) <
+                  BigInt(data.orders[i].total_amount)
+                )
+                  throw Error("Invalid exact-amount sort");
+          }
+          return { status: r.status, ok: r.ok };
+        }, endpoint);
+        const ms = Math.round(performance.now() - t);
+        if (response.ok) record("api:" + endpoint, ms);
+      }
+    }
+    if (process.env.PERF_RESPONSIVE === "1")
+      await verifyResponsive(page, base, process.env.PERF_LABEL || "benchmark");
+    const browserResources = await page.evaluate(() =>
+      performance
+        .getEntriesByType("resource")
+        .map((entry) => {
+          const r = entry as PerformanceResourceTiming;
+          return {
+            type: r.initiatorType,
+            path: new URL(r.name).pathname,
+            duration: Math.round(r.duration),
+            transfer: r.transferSize,
+            body: r.encodedBodySize,
+            ttfb: Math.round(r.responseStart - r.requestStart),
+          };
+        })
+        .filter((r) => r.path.startsWith("/_next/")),
+    );
     const metrics = Object.fromEntries(
       Object.entries(samples).map(([k, values]) => {
         const a = [...values].sort((a, b) => a - b);
@@ -227,6 +339,8 @@ async function main() {
       metrics,
       responses,
       requests: responses.length,
+      loginAttempts,
+      browserResources,
     };
     writeFileSync(
       "output/performance/" +
@@ -256,16 +370,40 @@ async function main() {
       if (r.error) throw Error("Fixture cleanup incomplete");
     }
     if (userId) {
-      await service.from("audit_logs").delete().eq("actor_id", userId);
-      await service.from("profiles").delete().eq("id", userId);
+      const audit = await service
+        .from("audit_logs")
+        .delete()
+        .or("actor_id.eq." + userId + ",resource_id.eq." + userId);
+      if (audit.error) throw Error("Fixture audit cleanup incomplete");
+      const profile = await service.from("profiles").delete().eq("id", userId);
+      if (profile.error) throw Error("Fixture profile cleanup incomplete");
       const r = await service.auth.admin.deleteUser(userId);
       if (r.error) throw Error("Auth fixture cleanup incomplete");
     }
   }
 }
 main().catch((e) => {
+  mkdirSync("output/performance", { recursive: true });
+  writeFileSync(
+    "output/performance/" +
+      (process.env.PERF_LABEL || "benchmark") +
+      "-failed.json",
+    JSON.stringify(
+      {
+        phase,
+        samples,
+        loginAttempts,
+        responses,
+        error: e instanceof Error ? e.message.split("\n")[0] : "unknown",
+      },
+      null,
+      2,
+    ),
+  );
   console.error(
-    "Benchmark failed: " +
+    "Benchmark failed at " +
+      phase +
+      ": " +
       (e instanceof Error &&
       /^(Fixture|Benchmark|Preview|Data|Auth fixture)/.test(e.message)
         ? e.message

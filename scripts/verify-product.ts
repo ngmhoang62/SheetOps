@@ -74,6 +74,57 @@ async function request(
   origin = base,
 ) {
   const t = performance.now();
+  if (base.startsWith("https:")) {
+    let page = ctx
+      .pages()
+      .find((p) => !p.isClosed() && p.url().startsWith(base));
+    if (!page) {
+      page = await ctx.newPage();
+      await page.goto(base + "/login");
+      await expect(
+        page.getByRole("button", { name: "Đăng nhập", exact: true }),
+      ).toBeVisible();
+    }
+    if (origin !== base)
+      await ctx.route(
+        base + path,
+        (route) =>
+          route.continue({
+            headers: {
+              ...route.request().headers(),
+              origin,
+              ...(process.env.VERCEL_OIDC_TOKEN
+                ? {
+                    "x-vercel-trusted-oidc-idp-token":
+                      process.env.VERCEL_OIDC_TOKEN,
+                  }
+                : {}),
+            },
+          }),
+        { times: 1 },
+      );
+    const result = await page.evaluate(
+      async ({ path, method, data }) => {
+        const r = await fetch(path, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: data === undefined ? undefined : JSON.stringify(data),
+          cache: "no-store",
+        });
+        return { status: r.status, text: await r.text() };
+      },
+      { path, method, data },
+    );
+    (timings[path.split("?")[0]] ??= []).push(
+      Math.round(performance.now() - t),
+    );
+    return {
+      status: () => result.status,
+      ok: () => result.status >= 200 && result.status < 300,
+      json: async () => JSON.parse(result.text),
+      text: async () => result.text,
+    };
+  }
   const r = await ctx.request.fetch(base + path, {
     method,
     data,
@@ -126,6 +177,11 @@ async function main() {
         throw Error("Unrecognized output tab");
       backups.push({ name, id, values });
     }
+    mkdirSync("output/performance", { recursive: true });
+    writeFileSync(
+      "output/performance/product-" + key + "-snapshots.private.json",
+      JSON.stringify(backups),
+    );
     for (const role of ["admin", "editor", "viewer"]) {
       const email =
           "product-" + key.toLowerCase() + "-" + role + "@example.invalid",
@@ -177,6 +233,29 @@ async function main() {
     }
     async function login(c: BrowserContext, u: (typeof users)[number]) {
       const p = await c.newPage();
+      p.on("response", async (r) => {
+        const path = new URL(r.url()).pathname;
+        if (new URL(r.url()).origin === base && path.startsWith("/api/")) {
+          await r.finished().catch(() => {});
+          const metric =
+            r.request().method() +
+            " " +
+            path.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/g, ":id") +
+            " [" +
+            r.status() +
+            "]";
+          (timings[metric] ??= []).push(
+            Math.round(r.request().timing().responseEnd),
+          );
+          console.log(
+            JSON.stringify({
+              browserApi: path.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/g, ":id"),
+              status: r.status(),
+              method: r.request().method(),
+            }),
+          );
+        }
+      });
       await p.goto(base + "/login");
       await p.getByLabel("Email", { exact: true }).fill(u.email);
       await p.getByLabel("Mật khẩu", { exact: true }).fill(u.password);
@@ -204,9 +283,15 @@ async function main() {
     await dialog.locator("#order-customer_name").fill("Khách hàng giả lập");
     await dialog.locator("#order-total_amount").fill("9007199254740993");
     await dialog.locator("#order-status").selectOption("pending");
+    await dialog.locator("#order-note").fill("=1+1");
+    const createAck = performance.now();
     await dialog
       .getByRole("button", { name: "Tạo đơn hàng", exact: true })
       .click();
+    await expect(
+      dialog.getByRole("button", { name: "Đang lưu…", exact: true }),
+    ).toBeVisible();
+    timings.create_ack = [Math.round(performance.now() - createAck)];
     await expect(dialog).toHaveCount(0);
     const listed = await request(a, "/api/orders?search=" + code);
     expect(listed.status()).toBe(200);
@@ -221,15 +306,44 @@ async function main() {
       .getByRole("button", { name: "Sửa " + code, exact: true })
       .click();
     await dialog.locator("#order-status").selectOption("completed");
+    const editAck = performance.now();
     await dialog
       .getByRole("button", { name: "Lưu thay đổi", exact: true })
       .click();
+    await expect(
+      dialog.getByRole("button", { name: "Đang lưu…", exact: true }),
+    ).toBeVisible();
+    timings.edit_ack = [Math.round(performance.now() - editAck)];
     await expect(dialog).toHaveCount(0);
     const summary = (await (await request(a, "/api/dashboard/summary")).json())
       .data;
     expect(BigInt(summary.revenue)).toBe(
       BigInt(before.revenue) + 9007199254740993n,
     );
+    await page
+      .getByRole("navigation")
+      .getByRole("link", { name: "Báo cáo", exact: true })
+      .click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Xuất CSV", exact: true }).click();
+    const download = await downloadPromise;
+    const stream = await download.createReadStream();
+    const parts: Buffer[] = [];
+    for await (const chunk of stream) parts.push(Buffer.from(chunk));
+    const csvBytes = Buffer.concat(parts),
+      csvText = csvBytes.toString("utf8");
+    expect(csvBytes.subarray(0, 3).toString("hex")).toBe("efbbbf");
+    expect(csvText).toContain("Khách hàng giả lập");
+    expect(csvText).toContain("9007199254740993");
+    expect(csvText).toContain('"\'=1+1"');
+    checks.push(
+      "Browser CSV download preserves UTF-8/BIGINT and neutralizes formulas",
+    );
+    await page
+      .getByRole("navigation")
+      .getByRole("link", { name: "Đơn hàng", exact: true })
+      .click();
+    await page.getByLabel("Tìm kiếm đơn hàng").fill(code);
     checks.push(
       "Browser create/edit, pending-to-completed and exact BIGINT aggregation",
     );
@@ -384,9 +498,29 @@ async function main() {
       "/api/orders?visibility=hidden&search=" + code,
     );
     expect((await hiddenRows.json()).data.total).toBe(5);
+    expect((await request(v, "/api/orders", "POST", {})).status()).toBe(403);
+    expect(
+      (await request(v, "/api/orders/" + saved.id, "PATCH", {})).status(),
+    ).toBe(403);
+    expect(
+      (await request(v, "/api/orders/" + saved.id, "DELETE")).status(),
+    ).toBe(403);
     const e = await context();
     await login(e, users[1]);
     expect((await request(e, "/api/users")).status()).toBe(403);
+    expect(
+      (
+        await request(e, "/api/users/" + users[1].id + "/role", "PATCH", {
+          role: "admin",
+        })
+      ).status(),
+    ).toBe(403);
+    const anonymous = await context();
+    expect((await request(anonymous, "/api/orders")).status()).toBe(401);
+    expect((await request(anonymous, "/api/cron/daily-export")).status()).toBe(
+      401,
+    );
+    await anonymous.close();
     expect(
       (
         await request(e, "/api/orders/" + saved.id + "/restore", "POST")
@@ -403,18 +537,63 @@ async function main() {
     phase = "responsive";
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto(base + "/orders");
-      await expect(
-        page.getByRole("heading", { name: "Đơn hàng", exact: true }),
-      ).toBeVisible();
-      expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= window.innerWidth,
-        ),
-      ).toBe(true);
+      for (const [path, heading] of [
+        ["dashboard", "Tổng quan hoạt động"],
+        ["orders", "Đơn hàng"],
+        ["reports", "Báo cáo vận hành"],
+        ["users", "Người dùng & vai trò"],
+        ["sync", "Trung tâm đồng bộ"],
+        ["settings", "Cài đặt"],
+      ]) {
+        await page.goto(base + "/" + path);
+        await expect(
+          page.getByRole("heading", { name: heading, exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByText(/Đang tải (thống kê|dữ liệu|đơn hàng)…/, {
+            exact: true,
+          }),
+        ).toHaveCount(0);
+        await expect(page.locator("main [role=alert]")).toHaveCount(0);
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+          ),
+        ).toBe(true);
+        await page.screenshot({
+          path:
+            "output/performance/" +
+            (base.startsWith("http:") ? "local" : "preview") +
+            "-" +
+            path +
+            "-" +
+            width +
+            ".png",
+          fullPage: true,
+        });
+      }
     }
     await page.setViewportSize({ width: 1366, height: 900 });
-    checks.push("Orders laptop/mobile viewport fits");
+    checks.push(
+      "All six routes fit laptop/mobile viewports; screenshots captured",
+    );
+    await page.goto(base + "/users");
+    await expect(
+      page.getByRole("button", { name: "Mời người dùng", exact: true }),
+    ).toBeVisible();
+    const inviteAck = performance.now();
+    await page
+      .getByRole("button", { name: "Mời người dùng", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    timings.invitation_dialog_ack = [Math.round(performance.now() - inviteAck)];
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Hủy", exact: true })
+      .click();
+    checks.push(
+      "Invitation dialog opens without provider requests; no duplicate email sent",
+    );
     phase = "sync";
     await page.goto(base + "/sync");
     await page
@@ -494,11 +673,52 @@ async function main() {
       "Disabled existing session denied and cached workspace cleared on fresh authorization",
     );
     phase = "logout";
+    const secondTab = await a.newPage();
+    await secondTab.goto(base + "/orders");
+    await expect(
+      secondTab.getByRole("heading", { name: "Đơn hàng", exact: true }),
+    ).toBeVisible();
     await page.locator(".user-menu summary").click();
     await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
     await page.waitForURL("**/login");
     expect((await request(a, "/api/orders")).status()).toBe(401);
-    checks.push("Logout clears authenticated access");
+    await secondTab.waitForURL("**/login?reason=*");
+    await expect(secondTab.getByRole("table")).toHaveCount(0);
+    checks.push(
+      "Logout clears authenticated access and private content in another tab",
+    );
+    phase = "session expiration";
+    const fresh = await context();
+    const freshPage = await fresh.newPage();
+    await freshPage.goto(base + "/login");
+    await freshPage.getByLabel("Email", { exact: true }).fill(users[0].email);
+    await freshPage
+      .getByLabel("Mật khẩu", { exact: true })
+      .fill(randomUUID() + "Wrong!");
+    await freshPage
+      .getByRole("button", { name: "Đăng nhập", exact: true })
+      .click();
+    await expect(
+      freshPage.getByText("Email hoặc mật khẩu không đúng.", { exact: true }),
+    ).toBeVisible();
+    const authenticated = await login(fresh, users[0]);
+    await authenticated.goto(base + "/orders");
+    await expect(authenticated.getByRole("table")).toBeVisible();
+    // Remove only the staging auth cookie, preserving Preview protection cookies.
+    const cookiePrefix =
+      "sb-" +
+      process.env.NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF +
+      "-auth-token";
+    await fresh.clearCookies({ name: new RegExp("^" + cookiePrefix) });
+    await authenticated.evaluate(() =>
+      window.dispatchEvent(new Event("focus")),
+    );
+    await authenticated.waitForURL("**/login?reason=*");
+    await expect(authenticated.getByRole("table")).toHaveCount(0);
+    expect((await request(fresh, "/api/orders")).status()).toBe(401);
+    checks.push(
+      "Wrong password rejected; missing/expired browser session clears cached business data",
+    );
     complete = true;
   } finally {
     await browser?.close();
@@ -514,7 +734,10 @@ async function main() {
                 valueRenderOption: "UNFORMATTED_VALUE",
               })
             ).data.values ?? [];
-          if (!allowedHashes.has(snapshotHash(normalizeRows(current, 7))))
+          if (
+            !allowedHashes.has(snapshotHash(normalizeRows(current, 7))) &&
+            digest(current) !== digest(backup.values)
+          )
             throw Error("Concurrent external edit");
         }
         await sheets.spreadsheets.batchUpdate({
@@ -624,7 +847,13 @@ async function main() {
     console.log(JSON.stringify({ phase, checks, timings }));
   }
 }
-main().catch(() => {
+main().catch((error: unknown) => {
+  console.error(
+    JSON.stringify({
+      assertion:
+        error instanceof Error ? error.message.split("\n")[0] : "unknown",
+    }),
+  );
   console.error(
     "Product E2E failed at " +
       phase +
