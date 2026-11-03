@@ -9,12 +9,13 @@ import {
   type ReactNode,
 } from "react";
 import type { Profile } from "@/lib/contracts";
-import { api } from "./resource";
+import { api, ApiError } from "./resource";
 type Workspace = {
   user: Profile | null;
   organization: string;
   ready: boolean;
   error: string;
+  sessionIssue: string | null;
   revision: number;
   refresh: () => Promise<void>;
   changed: () => void;
@@ -27,6 +28,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState("SheetOps");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const [sessionIssue, setSessionIssue] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(async () => {
     try {
@@ -36,8 +38,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setUser(data.profile);
       setOrganization(data.organization);
       setError("");
+      setSessionIssue(null);
     } catch (e) {
       setUser(null);
+      setSessionIssue(
+        e instanceof ApiError && e.status === 403
+          ? e.code === "ACCOUNT_DISABLED"
+            ? "account_disabled"
+            : "account_unavailable"
+          : e instanceof ApiError && e.status === 401
+            ? "session_expired"
+            : null,
+      );
       setError(e instanceof Error ? e.message : "Không thể xác thực phiên.");
     } finally {
       setReady(true);
@@ -63,6 +75,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         organization,
         ready,
         error,
+        sessionIssue,
         revision,
         refresh,
         changed: () => setRevision((v) => v + 1),

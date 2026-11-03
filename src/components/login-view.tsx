@@ -5,7 +5,8 @@ import { Sheet, ArrowUpRight } from "lucide-react";
 import { api } from "./resource";
 import { useWorkspace } from "./workspace-provider";
 import { Button } from "./ui/button";
-export function LoginPage() {
+import { loginNotice } from "@/lib/access-notice";
+export function LoginPage({ reason }: { reason?: string }) {
   const { refresh } = useWorkspace();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -36,6 +37,11 @@ export function LoginPage() {
         <span className="section-kicker">CHÀO MỪNG ĐẾN SHEETOPS</span>
         <h2>Đăng nhập</h2>
         <p>Sử dụng tài khoản được quản trị viên cấp.</p>
+        {loginNotice(reason) && (
+          <p className="notice notice-error" role="alert">
+            {loginNotice(reason)}
+          </p>
+        )}
         <form
           onSubmit={async (e) => {
             e.preventDefault();

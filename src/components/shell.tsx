@@ -40,14 +40,15 @@ export function LoadingState() {
   );
 }
 export function AppShell({ children }: { children: ReactNode }) {
-  const { organization, user, ready, logout, error } = useWorkspace();
+  const { organization, user, ready, logout, error, sessionIssue } =
+    useWorkspace();
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (ready && !user && path !== "/login" && !path.startsWith("/auth/"))
-      router.replace("/login");
-  }, [ready, user, path, router]);
+      router.replace(sessionIssue ? `/login?reason=${sessionIssue}` : "/login");
+  }, [ready, user, path, router, sessionIssue]);
   if (path === "/login" || path.startsWith("/auth/")) return <>{children}</>;
   if (!ready || !user) return <LoadingState />;
   const page = navigation.find((item) => item.href === path);

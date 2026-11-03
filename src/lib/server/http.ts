@@ -97,6 +97,7 @@ export async function requireActor(
     throw new HttpError(
       403,
       "Tài khoản chưa được cấp quyền hoặc đã vô hiệu hóa.",
+      result.data ? "ACCOUNT_DISABLED" : "ACCOUNT_UNAVAILABLE",
     );
   const profile = profileSchema.parse(result.data);
   if (allowed && !allowed.includes(profile.role))

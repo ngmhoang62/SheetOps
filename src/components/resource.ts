@@ -5,6 +5,7 @@ export class ApiError extends Error {
     message: string,
     public status: number,
     public fields?: Record<string, string[]>,
+    public code?: string,
   ) {
     super(message);
   }
@@ -21,6 +22,7 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
       result.error?.message ?? "Không thể xử lý yêu cầu.",
       response.status,
       result.error?.fields,
+      result.error?.code,
     );
   return result.data as T;
 }

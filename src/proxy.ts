@@ -27,8 +27,17 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const publicPath = path === "/login" || path.startsWith("/auth/");
   // APIs own their structured authentication and cron checks; never authorize from client state.
-  if (!path.startsWith("/api/") && !publicPath) {
+  const revokedLogin =
+    path === "/login" &&
+    ["account_disabled", "account_unavailable"].includes(
+      request.nextUrl.searchParams.get("reason") ?? "",
+    );
+  if (!path.startsWith("/api/") && (!publicPath || revokedLogin)) {
     if (!user) {
+      if (publicPath) {
+        response.headers.set("Cache-Control", "private, no-store");
+        return response;
+      }
       const r = NextResponse.redirect(new URL("/login", request.url));
       response.cookies.getAll().forEach((c) => r.cookies.set(c));
       return r;
@@ -38,12 +47,39 @@ export async function proxy(request: NextRequest) {
       .select("role,is_active")
       .eq("id", user.id)
       .single();
+    if (!p?.is_active) {
+      // End only this browser's session; other users/sessions are untouched.
+      await db.auth.signOut({ scope: "local" }).catch(() => undefined);
+      const target = new URL("/login", request.url);
+      target.searchParams.set(
+        "reason",
+        p ? "account_disabled" : "account_unavailable",
+      );
+      const redirect = NextResponse.redirect(target);
+      response.cookies
+        .getAll()
+        .forEach((cookie) => redirect.cookies.set(cookie));
+      // Also expire existing chunks if the Auth logout service was unavailable.
+      const prefix = `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
+      request.cookies
+        .getAll()
+        .filter(
+          ({ name }) =>
+            name === prefix ||
+            name.startsWith(prefix + ".") ||
+            name.startsWith(prefix + "-"),
+        )
+        .forEach(({ name }) =>
+          redirect.cookies.set(name, "", { path: "/", maxAge: 0 }),
+        );
+      redirect.headers.set("Cache-Control", "private, no-store");
+      return redirect;
+    }
     if (
-      !p?.is_active ||
-      (["/users", "/sync", "/settings"].some(
+      ["/users", "/sync", "/settings"].some(
         (v) => path === v || path.startsWith(v + "/"),
       ) &&
-        p.role !== "admin")
+      p.role !== "admin"
     )
       return new NextResponse("Bạn không có quyền truy cập.", {
         status: 403,
