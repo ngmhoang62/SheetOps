@@ -387,12 +387,6 @@ hr {
   margin-top: auto;
   padding-top: 50px;
 }
-.demo-note {
-  padding: 17px 13px 15px;
-  border-radius: 9px;
-  background: linear-gradient(130deg, #f4f8f2, #edf4ee);
-  border: 1px solid #e5eee2;
-}
 .eyebrow {
   font-size: 11px;
   font-weight: 750;
@@ -409,25 +403,6 @@ hr {
   border-radius: 50%;
   background: #6a9e78;
   flex-shrink: 0;
-}
-.demo-note strong {
-  display: block;
-  font-size: 15px;
-  margin: 11px 0 7px;
-}
-.demo-note p {
-  font-size: 13px;
-  line-height: 1.8;
-  color: #879388;
-}
-.demo-note a {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
-  color: #4c7f58;
-  margin-top: 14px;
 }
 .sidebar-footer {
   display: flex;

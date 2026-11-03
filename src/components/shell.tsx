@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ArrowUpRight,
   BarChart3,
   ChevronDown,
   CircleHelp,
@@ -40,16 +39,29 @@ export function LoadingState() {
   );
 }
 export function AppShell({ children }: { children: ReactNode }) {
-  const { organization, user, ready, logout, error, sessionIssue } =
+  const { organization, user, ready, logout, error, sessionIssue, refresh } =
     useWorkspace();
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    if (ready && !user && path !== "/login" && !path.startsWith("/auth/"))
+    if (
+      ready &&
+      !user &&
+      (sessionIssue || !error) &&
+      path !== "/login" &&
+      !path.startsWith("/auth/")
+    )
       router.replace(sessionIssue ? `/login?reason=${sessionIssue}` : "/login");
-  }, [ready, user, path, router, sessionIssue]);
+  }, [ready, user, path, router, sessionIssue, error]);
   if (path === "/login" || path.startsWith("/auth/")) return <>{children}</>;
+  if (ready && !user && error && !sessionIssue)
+    return (
+      <div className="loading-state" role="alert">
+        <p>{error}</p>
+        <Button onClick={() => void refresh()}>Thử lại</Button>
+      </div>
+    );
   if (!ready || !user) return <LoadingState />;
   const page = navigation.find((item) => item.href === path);
   const permitted = canAccess(user.role, path);
@@ -105,18 +117,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="demo-note">
-            <span className="eyebrow">
-              <span className="live-dot" /> DỮ LIỆU TẬP TRUNG
-            </span>
-            <strong>Không gian vận hành</strong>
-            <p>
-              Dữ liệu được lưu trong PostgreSQL và chia sẻ theo quyền truy cập.
-            </p>
-            <Link href="/reports">
-              Khám phá báo cáo <ArrowUpRight size={15} />
-            </Link>
-          </div>
           <div className="sidebar-footer">
             <CircleHelp size={16} />
             <span>SheetOps · Nội bộ</span>

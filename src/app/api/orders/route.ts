@@ -1,10 +1,19 @@
-import { body, checkOrigin, fail, json, requireActor } from "@/lib/server/http";
+import {
+  body,
+  checkOrigin,
+  fail,
+  json,
+  requireActor,
+  readAsActor,
+} from "@/lib/server/http";
 import { listOrders, params } from "@/lib/server/orders";
 import { liveOrderInput } from "@/lib/contracts";
 export async function GET(request: Request) {
   try {
-    const { db } = await requireActor();
-    return json(await listOrders(db, params(request)));
+    const { result } = await readAsActor((db) =>
+      listOrders(db, params(request)),
+    );
+    return json(result);
   } catch (e) {
     return fail(e);
   }

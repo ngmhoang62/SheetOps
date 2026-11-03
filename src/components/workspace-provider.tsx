@@ -10,7 +10,9 @@ import {
 } from "react";
 import type { Profile } from "@/lib/contracts";
 import { api, ApiError } from "./resource";
+export type WorkspaceSession = { profile: Profile; organization: string };
 type Workspace = {
+  establish: (session: WorkspaceSession) => void;
   user: Profile | null;
   organization: string;
   ready: boolean;
@@ -30,6 +32,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [sessionIssue, setSessionIssue] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const establish = useCallback((data: WorkspaceSession) => {
+    setUser(data.profile);
+    setOrganization(data.organization);
+    setError("");
+    setSessionIssue(null);
+    setReady(true);
+  }, []);
   const refresh = useCallback(async () => {
     try {
       const data = await api<{ profile: Profile; organization: string }>(
@@ -40,6 +49,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setError("");
       setSessionIssue(null);
     } catch (e) {
+      // A temporary service failure must not erase a still-authenticated workspace.
+      if (!(e instanceof ApiError) || ![401, 403].includes(e.status)) {
+        setError(e instanceof Error ? e.message : "Không thể xác thực phiên.");
+        return;
+      }
       setUser(null);
       setSessionIssue(
         e instanceof ApiError && e.status === 403
@@ -71,6 +85,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   return (
     <Context.Provider
       value={{
+        establish,
         user,
         organization,
         ready,
