@@ -1,5 +1,12 @@
 import { assertStaging, stagingSheet } from "../src/lib/environment";
-import { loadEnvConfig } from "@next/env";
+import { loadStagingEnv } from "./staging-env";
+import { generateOrders } from "../src/lib/seed";
+import {
+  inputHeaders,
+  normalizeRows,
+  parseSheet,
+  snapshotHash,
+} from "../src/lib/sheets-format";
 import { createClient } from "@supabase/supabase-js";
 import {
   chromium,
@@ -10,7 +17,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { google } from "googleapis";
-loadEnvConfig(process.cwd());
+loadStagingEnv();
 async function main() {
   if (process.env.RUN_CLOUD_TESTS !== "1")
     throw new Error("Explicit cloud test opt-in required");
@@ -38,6 +45,29 @@ async function main() {
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID!;
   stagingSheet(spreadsheetId, process.env.STAGING_GOOGLE_SPREADSHEET_ID);
   const backupTabs: { name: string; id: number; rows: string[][] }[] = [];
+  const sourceBefore = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "'Source_Orders'!A:G",
+    valueRenderOption: "UNFORMATTED_VALUE",
+  });
+  const sourceRows = sourceBefore.data.values ?? [];
+  const sourceParsed = parseSheet(sourceRows);
+  if (
+    sourceParsed.errors.length &&
+    !(
+      sourceRows.length === 1 &&
+      JSON.stringify(sourceRows[0]) === JSON.stringify(inputHeaders)
+    )
+  )
+    throw new Error(
+      "Staging source must be header-only or a valid synthetic source",
+    );
+  const expectedBusiness = [
+    inputHeaders,
+    ...generateOrders().map((o) =>
+      inputHeaders.map((k) => String(o[k as keyof typeof o] ?? "")),
+    ),
+  ];
   const canonical = [
     "order_code",
     "customer_name",
@@ -63,8 +93,18 @@ async function main() {
       valueRenderOption: "UNFORMATTED_VALUE",
     });
     const rows = (read.data.values ?? []) as string[][];
+    const knownSynthetic =
+      rows.length === 301 &&
+      rows.every((r) => r.length === 7) &&
+      JSON.stringify(rows[0]) === JSON.stringify(canonical) &&
+      snapshotHash(normalizeRows(rows, 6)) === snapshotHash(expectedBusiness) &&
+      rows
+        .slice(1)
+        .every(
+          (r) => typeof r[6] === "string" && Number.isFinite(Date.parse(r[6])),
+        );
     if (
-      rows.length > 1 ||
+      (rows.length > 1 && !knownSynthetic) ||
       (rows.length === 1 &&
         JSON.stringify(rows[0]) !== JSON.stringify(canonical))
     )
@@ -265,6 +305,28 @@ async function main() {
     const forbidden = await viewer.goto(base + "/users");
     expect(forbidden?.status()).toBe(403);
     pass("Viewer read-only UI, direct mutations and admin routes denied");
+    step = "disabled Viewer session redirect";
+    const disabled = await adminContext.request.post(
+      base + `/api/users/${users[2].id}/disable`,
+      {
+        headers: { Origin: base },
+        data: { is_active: false },
+      },
+    );
+    expect(disabled.status()).toBe(200);
+    await viewer.goto(base + "/orders");
+    await expect(viewer).toHaveURL(
+      /\/login\?reason=account_(disabled|unavailable)$/,
+    );
+    await expect(viewer.locator(".notice[role=alert]")).toContainText(
+      "đã bị vô hiệu hóa",
+    );
+    expect(
+      (await viewerContext.request.get(base + "/api/orders")).status(),
+    ).toBe(401);
+    pass(
+      "Admin disables Viewer; existing browser session clears and redirects to explained login",
+    );
     const editorContext = await browser.newContext();
     await login(editorContext, users[1]);
     expect(
@@ -319,11 +381,9 @@ async function main() {
     );
     expect(preview.status()).toBe(200);
     const p = (await preview.json()).data;
-    expect(p.rowCount).toBe(0);
+    expect(p.rowCount).toBe(sourceParsed.orders.length);
     expect(p.canImport).toBe(false);
-    pass(
-      "Empty source validation and initial-import denial after soft deletion",
-    );
+    pass("Source preview and initial-import denial after soft deletion");
     step = "final dashboard and logout";
     await admin.goto(base + "/dashboard");
     await expect(
@@ -373,6 +433,7 @@ async function main() {
           valueRenderOption: "UNFORMATTED_VALUE",
         });
         const values = current.data.values ?? [];
+        if (JSON.stringify(values) === JSON.stringify(backup.rows)) continue;
         if (
           values.length &&
           JSON.stringify(values[0]) !== JSON.stringify(canonical)
@@ -429,6 +490,13 @@ async function main() {
       pass(
         "Both managed Sheets tabs restored and read-back matched pre-test content",
       );
+      const sourceAfter = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "'Source_Orders'!A:G",
+        valueRenderOption: "UNFORMATTED_VALUE",
+      });
+      expect(sourceAfter.data.values ?? []).toEqual(sourceRows);
+      pass("Source content unchanged by read-back comparison");
     } catch {
       sheetsRestored = false;
       results.push({

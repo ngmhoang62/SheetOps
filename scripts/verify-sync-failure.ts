@@ -1,10 +1,10 @@
 import { assertStaging, stagingSheet } from "../src/lib/environment";
-import { loadEnvConfig } from "@next/env";
+import { loadStagingEnv } from "./staging-env";
 import { createClient } from "@supabase/supabase-js";
 import { google } from "googleapis";
 import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
-loadEnvConfig(process.cwd());
+loadStagingEnv();
 async function main() {
   if (process.env.RUN_CLOUD_TESTS !== "1")
     throw new Error("Explicit opt-in required");

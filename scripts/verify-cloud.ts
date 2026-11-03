@@ -1,8 +1,8 @@
 import { assertStaging } from "../src/lib/environment";
-import { loadEnvConfig } from "@next/env";
+import { loadStagingEnv } from "./staging-env";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
-loadEnvConfig(process.cwd());
+loadStagingEnv();
 // Opt-in real-cloud checks. Only generated fixture IDs are ever cleaned up.
 // Do not run against a project with real business data; there is no automatic seed.
 async function main() {
