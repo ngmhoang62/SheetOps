@@ -1,6 +1,6 @@
 # Phase 3 evidence — 2026-11-03
 
-Status: **IMPLEMENTED — ENVIRONMENT VERIFICATION PENDING**. Real isolated staging integration and synthetic PostgreSQL restore now pass; protected online QA, full Auth/offsite recovery and remaining release gates are still pending. Nothing in this document authorizes merging dev to main.
+Status: **PARTIALLY COMPLETE — BLOCKED**. Independent staging, owner online login/Sheets QA, real integration tests, synthetic PostgreSQL restore and scheduled production cron now pass. Production encrypted offsite backup scheduling/full Auth recovery and release-governance confirmation remain pending. Nothing in this document authorizes merging dev to main.
 
 ## Staging follow-up (later evidence supersedes initial blockers below)
 
@@ -16,6 +16,17 @@ Status: **IMPLEMENTED — ENVIRONMENT VERIFICATION PENDING**. Real isolated stag
 - Latest unit checks: **80 PASS**; lint/typecheck/format, normal production build and staging build PASS. No secrets logged/committed. Further Preview deployment evidence appended after push.
 - Owner changed cron monitor frequency to **20 minutes**; this follow-up did not alter it. Production cron restoration remains a separate maintenance authorization, not permission to release dev.
 - After test cleanup, owner created qa-admin@example.invalid; trusted staging-only bootstrap succeeded for the supplied UUID. Read-back verified email confirmed, role Admin and active status. This retained QA account is not part of disposable cleanup. Do not rerun suites assuming an empty Auth workspace without reviewing retained accounts.
+
+## Online QA and production cron closure
+
+- dev c87fc89 Preview deployment dpl_5sXhKiqTiNydxZcuVd2A7G7LMmJk READY in sin1; owner confirmed successful online QA Admin login and connection to the staging Sheet through the stable dev alias. [Actions run 41604558015](https://github.com/ngmhoang62/SheetOps/actions/runs/41604558015) completed SUCCESS. Authenticated connector fetch remains unavailable; owner QA is explicitly distinguished from connector inspection.
+- Actual production cron run e64f6171-36e3-46c1-a803-3fcd966db0cd, daily:2026-11-03, success at 15:37:27–15:37:33 UTC+7, 300 rows. Audit event exists. Independent read-only output/staging checks matched canonical headers and stored snapshot hash 7a7d74e4ed42c94789cec9fec765892d2f7500d300bf92a84598caf408c959fd. No manual production invocation was used for this gate.
+- Only authorized cron maintenance was pushed to main as 874ecac: schedule restored to 0 16 * * * (23:00). Production deployment dpl_AkwaY8Vu91kbseHGQENKQbBj3dqR READY for that SHA and canonical alias, existing iad1 region preserved. main lint/typecheck/71 retained tests/format/build PASS; production login HTTP 200. Production Orders=300 and Auth users=2 unchanged; audit count 307 includes the legitimate scheduled export.
+- Returned to dev and merged the main maintenance commit into dev as 7c068a5, never the reverse. Resolved only the vercel.json formatting conflict while retaining dev sin1 and official 23:00 cron. No Phase 3 release to production occurred.
+- The one-purpose cron monitor was deleted only after success/restoration verification. Its final scheduler snapshot was INTERVAL=20; no reset to 10 minutes occurred.
+- Owner is opening a draft dev → main PR manually after connector 403. Able to merge means no Git conflict; it is not release approval. Actual PR/protection status remains to be confirmed. Production backup export/remote upload has not occurred; owner is choosing private offsite storage and decryption-key custody. Synthetic memory encryption/restore does not close this operational gate.
+
+## Initial checkpoint table (historical; later evidence above supersedes closed blockers)
 
 | Milestone                   | State                                    | Evidence / gap                                                                                                                                                                                                                                                                                                                                                                                                      |
 | --------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
