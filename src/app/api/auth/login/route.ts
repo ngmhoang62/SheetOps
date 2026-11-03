@@ -33,16 +33,31 @@ export async function POST(request: Request) {
     if (error || !data.user)
       throw new HttpError(401, "Email hoặc mật khẩu không đúng.");
     try {
-      const [{ profile }, settings] = await Promise.all([
+      const [{ profile }, settings, dashboard] = await Promise.all([
         authorizeActor(db, data.user.id),
         db.from("workspace_settings").select("organization").single(),
+        db.rpc("analytics_summary", {
+          date_from: null,
+          date_to: null,
+          status_filter: null,
+        }),
       ]);
       if (settings.error) throw settings.error;
-      return json({ profile, organization: settings.data.organization }, 200, {
-        password: authMs,
-        profile: performance.now() - started - authMs,
-        total: performance.now() - started,
-      });
+      // A failed optional initial read must not invalidate a valid login.
+      // Dashboard will use its regular authorized endpoint if this read fails.
+      return json(
+        {
+          profile,
+          organization: settings.data.organization,
+          ...(dashboard.error ? {} : { dashboard: dashboard.data }),
+        },
+        200,
+        {
+          password: authMs,
+          profile: performance.now() - started - authMs,
+          total: performance.now() - started,
+        },
+      );
     } catch (e) {
       await db.auth.signOut();
       throw e;

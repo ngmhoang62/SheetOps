@@ -14,7 +14,12 @@ import type { Profile } from "@/lib/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createSessionQueryClient, affectedResource } from "@/lib/query-policy";
 import { api, ApiError } from "./resource";
-export type WorkspaceSession = { profile: Profile; organization: string };
+export type WorkspaceSession = {
+  profile: Profile;
+  organization: string;
+  dashboard?: unknown;
+};
+const defaultSummaryKey = "/api/dashboard/summary?from=&to=&status=all&search=";
 type Workspace = {
   establish: (session: WorkspaceSession) => void;
   user: Profile | null;
@@ -37,18 +42,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [sessionIssue, setSessionIssue] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [epoch, setEpoch] = useState(0);
-  const client = useMemo(
-    () =>
-      createSessionQueryClient(
-        [
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          user?.id,
-          user?.role,
-          epoch,
-        ].join(":"),
+  const [bootstrap, setBootstrap] = useState<{
+    id: string;
+    role: string;
+    data: unknown;
+    at: number;
+  } | null>(null);
+  const client = useMemo(() => {
+    const owned = createSessionQueryClient(
+      [process.env.NEXT_PUBLIC_SUPABASE_URL, user?.id, user?.role, epoch].join(
+        ":",
       ),
-    [user?.id, user?.role, epoch],
-  );
+    );
+    if (bootstrap && bootstrap.id === user?.id && bootstrap.role === user?.role)
+      owned.setQueryData([defaultSummaryKey], bootstrap.data, {
+        updatedAt: bootstrap.at,
+      });
+    return owned;
+  }, [user?.id, user?.role, epoch, bootstrap]);
   const generation = useRef(0);
   const loggingOut = useRef(false);
   const [tabId] = useState(() => crypto.randomUUID());
@@ -63,6 +74,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       channel?.postMessage({ type: "reset", sender: tabId });
       channel?.close();
       setEpoch((v) => v + 1);
+      setBootstrap(
+        data.dashboard === undefined
+          ? null
+          : {
+              id: data.profile.id,
+              role: data.profile.role,
+              data: data.dashboard,
+              at: Date.now(),
+            },
+      );
       setUser(data.profile);
       setOrganization(data.organization);
       setError("");
@@ -80,6 +101,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           "/api/session",
         );
         if (version !== generation.current) return;
+        setBootstrap((previous) =>
+          previous?.id === data.profile.id &&
+          previous.role === data.profile.role
+            ? previous
+            : null,
+        );
         setUser(data.profile);
         setOrganization(data.organization);
         setError("");
@@ -94,6 +121,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return;
         }
         setUser(null);
+        setBootstrap(null);
         setSessionIssue(
           e instanceof ApiError && e.status === 403
             ? e.code === "ACCOUNT_DISABLED"
@@ -137,6 +165,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         refreshing.current = null;
         void client.cancelQueries();
         client.clear();
+        setBootstrap(null);
         setUser(null);
         setSessionIssue(
           status === 401 ? "session_expired" : "account_unavailable",
@@ -156,6 +185,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         refreshing.current = null;
         void client.cancelQueries();
         client.clear();
+        setBootstrap(null);
         setUser(null);
         setReady(false);
         void refresh();
@@ -192,6 +222,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               generation.current++;
               await client.cancelQueries();
               client.clear();
+              setBootstrap(null);
               await api("/api/auth/logout", { method: "POST" });
               const channel =
                 typeof BroadcastChannel !== "undefined"
