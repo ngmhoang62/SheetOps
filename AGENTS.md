@@ -1,7 +1,8 @@
 # SheetOps conventions
 
 - Consult `docs/PRD.md` and `docs/IMPLEMENTATION_PLAN.md` before changing behavior.
-- Phase 2 is authorized. Target only Supabase `ubaxgkqkfcrqbyshkidz` (Singapore); never use the retired project. Preserve Phase 1 history.
+- Phase 3 is authorized. main is production and dev is development/Preview. Commit/push Phase 3 to dev; never merge/release main without owner approval. Only the explicitly authorized cron restoration may change main during this task.
+- Production Supabase is ubaxgkqkfcrqbyshkidz (Singapore). Preview and cloud tests require an explicitly declared independent staging ref and Sheet ID; never use the retired project or production cleanup tests. Never provision paid resources or change billing. Preserve Phase 1 history.
 - Use Next.js App Router, strict TypeScript, Tailwind, shadcn/ui, TanStack Table, Recharts, Zod, and npm.
 - Vietnamese UI; English code, types, contracts, and technical documentation.
 - Keep domain rules in `src/lib`, trusted services in server-only modules, and presentation in feature components. Production business data must use PostgreSQL, never localStorage.

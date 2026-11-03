@@ -1,11 +1,26 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { backendTarget } from "./lib/environment";
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
     key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key)
     return new NextResponse("Chưa cấu hình dịch vụ xác thực.", { status: 503 });
+  try {
+    backendTarget(
+      url,
+      process.env.VERCEL_ENV !== "production" &&
+        (process.env.VERCEL_ENV === "preview" ||
+          process.env.APP_ENV === "staging"),
+      process.env.NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF,
+    );
+  } catch {
+    return new NextResponse("Môi trường chưa được cấu hình backend độc lập.", {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
   const db = createServerClient(url, key, {
     cookies: {
       getAll: () => request.cookies.getAll(),

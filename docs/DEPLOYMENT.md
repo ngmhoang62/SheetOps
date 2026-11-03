@@ -1,6 +1,6 @@
 # Existing Vercel deployment
 
-Use the existing `sheetops` project linked to `ngmhoang62/SheetOps`, production branch `main`. Do not create another project. Push only tested, protected API checkpoints because main can trigger production deployment. The existing production Supabase public URL was verified to target Singapore. Environment **names/targets** were inspected without logging secret values.
+Use the existing `sheetops` project linked to `ngmhoang62/SheetOps`, production branch `main`. Do not create another project. Develop and push Phase 3 only on dev; main remains production and requires owner-approved release. Only the separate authorized cron restoration is production maintenance. The existing production Supabase public URL was verified to target Singapore. Environment **names/targets** were inspected without logging secret values.
 
 ## Required production configuration
 
@@ -40,3 +40,7 @@ Hobby timing is approximate within the scheduled hour; it does not guarantee the
 Run npm ci, lint, typecheck (including Next type generation), tests, format check, build, then explicit cloud/E2E suites with disposable fixtures only. Confirm target project, current Git SHA, environment, migrations, public-signup setting and least-privilege grants. Inspect deployment status for the pushed SHA and verify runtime separately from build success. Vercel deployment protection may require authenticated access; do not weaken protection simply to automate testing.
 
 Set up backups, restore verification and a rollback plan before real data. Rolling back app code does not automatically reverse database migrations or sheet publication. Prefer additive schema changes and forward fixes.
+
+## Phase 3 Preview
+
+See STAGING_SETUP.md for all Preview variables and exact redirect configuration. Existing production secrets are not copied. Missing independent staging settings intentionally return 503. Vercel dev pushes should create Preview deployments in the existing project; automatic Cron runs only in Production. Region sin1 in dev is proposed for staging latency alignment and remains subject to QA/release approval.

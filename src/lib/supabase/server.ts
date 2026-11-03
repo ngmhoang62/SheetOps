@@ -2,15 +2,19 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { backendTarget } from "../environment";
 
 export function publicConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (
-    !url ||
-    !key ||
-    new URL(url).hostname !== "ubaxgkqkfcrqbyshkidz.supabase.co"
-  )
+  backendTarget(
+    url,
+    process.env.VERCEL_ENV !== "production" &&
+      (process.env.VERCEL_ENV === "preview" ||
+        process.env.APP_ENV === "staging"),
+    process.env.NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF,
+  );
+  if (!url || !key)
     throw new Error("Supabase configuration unavailable or incorrect project");
   return { url, key };
 }

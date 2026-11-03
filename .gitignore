@@ -6,6 +6,7 @@ coverage/
 *.tsbuildinfo
 .env*
 !.env.example
+!.env.staging.example
 *.pem
 *.key
 *service-account*.json
@@ -17,3 +18,7 @@ Thumbs.db
 supabase/.temp/
 test-results/
 playwright-report/
+backups/
+*.dump
+*.sql.gz
+*.age
