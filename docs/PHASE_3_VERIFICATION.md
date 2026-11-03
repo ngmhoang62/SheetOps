@@ -1,6 +1,6 @@
 # Phase 3 evidence — 2026-11-03
 
-Status: **PARTIALLY COMPLETE — BLOCKED**. Independent staging, owner online login/Sheets QA, real integration tests, synthetic PostgreSQL restore and scheduled production cron now pass. Production encrypted offsite backup scheduling/full Auth recovery and release-governance confirmation remain pending. Nothing in this document authorizes merging dev to main.
+Status: **IMPLEMENTED — ENVIRONMENT VERIFICATION PENDING**. Independent staging, owner online login/Sheets QA, integration tests, synthetic PostgreSQL restore, actual scheduled production cron and the first encrypted offsite production backup are verified. Full Supabase/Auth disaster recovery and branch-protection confirmation remain open. The owner explicitly authorized the current PR release; production deployment evidence will be recorded after merge.
 
 ## Owner-approved release and Drive backup follow-up
 
@@ -10,7 +10,9 @@ Created owner-private My Drive folder SheetOps, ID 1F4PM1lwEwbRDu2gU-hFW5yhaGaHC
 
 Local weekly automation backup-sheetops-ch-nh-t-23h created with Sunday 23:00 recurrence. Job requires local Codex/Docker/network and reads only .env.backup.local. New backup utility pins the production database, dumps public/private/auth/migration schemas read-only, checks required table archive entries, encrypts and round-trip verifies before writing timestamped ignored artifacts. User explicitly requested key and encrypted archive in the same private folder for demo; this does not protect against compromise of the Drive account. No automatic pruning/permission broadening.
 
-Initial actual backup attempt failed at pg_dump DNS on the direct database host; no archive or key uploaded and no PASS claimed. Owner was asked to replace connection with Session pooler port 5432. Final first-backup/upload and release evidence follow after completion. Latest local lint/typecheck/82 tests/format/build PASS.
+First backup VERIFIED after the owner supplied Session pooler port 5432. Initial direct-host DNS failure produced no uploaded artifact. Successful snapshot at 2026-11-03T09:11:28.270Z: encrypted archive 206,091 bytes, SHA-256 c1c55a262c137e4ea76ac41f6e999439a2bb490d8c41f25d083f97dc53805ae4. Required table listing and authenticated encryption round-trip passed. Drive upload metadata independently confirmed correct folder, private sharing and file sizes: archive 1IEdjn8vSbqO2dqUaQaYry3BZg_bURst8 (206091), key 1pSe4svKXOHYmM1St3whVqRWp-tqSte1R (175), manifest 1Una6NEvPn7Gu1jOUTucGpeRpQSpuudaE (916). Uploaded content was not downloaded for checksum comparison; no full Supabase/Auth restore claimed. Latest local lint/typecheck/82 tests/format/build PASS; Actions 41608940672 SUCCESS on 672fbcf.
+
+Sections below retain chronological checkpoints. Earlier pending statements are superseded by this follow-up and subsequent release evidence.
 
 ## Staging follow-up (later evidence supersedes initial blockers below)
 
