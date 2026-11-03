@@ -18,6 +18,10 @@ stagingSheet(
   process.env.STAGING_GOOGLE_SPREADSHEET_ID,
 );
 const base = process.env.PRODUCT_BASE_URL || "http://127.0.0.1:3001";
+if (base !== "http://127.0.0.1:3001")
+  throw new Error(
+    "Full mutation regression is local-only; use test:preview:smoke for bounded Preview checks",
+  );
 if (
   ![
     "http://127.0.0.1:3001",

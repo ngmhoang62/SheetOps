@@ -2,10 +2,16 @@ import { loadStagingEnv } from "./staging-env";
 import { assertStaging } from "../src/lib/environment";
 import { generateOrders } from "../src/lib/seed";
 import { createClient } from "@supabase/supabase-js";
-import { chromium, expect } from "@playwright/test";
+import { chromium, expect as baseExpect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { verifyResponsive } from "./responsive-check";
+import {
+  benchmarkPlan,
+  lockPreview,
+  PreviewTraffic,
+  previewOrigin,
+} from "./preview-traffic";
 loadStagingEnv();
 assertStaging(process.env);
 const base = process.env.PERF_BASE_URL || "http://127.0.0.1:3001";
@@ -15,6 +21,10 @@ const allowed = [
 ];
 if (!allowed.includes(base) || process.env.RUN_PERFORMANCE_TESTS !== "1")
   throw Error("Explicit isolated benchmark required");
+const plan = benchmarkPlan(base, process.env);
+const traffic = base === previewOrigin ? new PreviewTraffic() : null;
+const expect = baseExpect.configure({ timeout: traffic ? 90000 : 30000 });
+let unlock: (() => void) | undefined;
 const service = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SECRET_KEY!,
@@ -39,6 +49,7 @@ function record(k: string, v: number) {
 }
 async function main() {
   try {
+    if (traffic) unlock = lockPreview();
     const initial = await service
       .from("orders")
       .select("id", { count: "exact", head: true });
@@ -70,7 +81,7 @@ async function main() {
     );
     const signed = await c.auth.signInWithPassword({ email, password });
     if (signed.error) throw Error("Fixture login unavailable");
-    const count = Number(process.env.PERF_ORDER_COUNT || 300);
+    const count = plan.count;
     if (![300, 2000].includes(count)) throw Error("Unsupported scale");
     const source = generateOrders();
     for (let offset = initial.count ?? 0; offset < count; offset += 100) {
@@ -100,7 +111,10 @@ async function main() {
     const context = await browser.newContext({
       viewport: { width: 1366, height: 900 },
     });
-    if (process.env.VERCEL_OIDC_TOKEN) {
+    if (traffic) {
+      traffic.focusRoute("/login");
+      await traffic.attach(context, process.env.VERCEL_OIDC_TOKEN);
+    } else if (process.env.VERCEL_OIDC_TOKEN) {
       await context.route(base + "/**", (route) =>
         route.continue({
           headers: {
@@ -111,8 +125,7 @@ async function main() {
       );
     }
     const page = await context.newPage();
-    expect.configure({ timeout: 30000 });
-    page.setDefaultTimeout(30000);
+    page.setDefaultTimeout(traffic ? 90000 : 30000);
     page.on("response", async (r) => {
       if (
         new URL(r.url()).origin !== base ||
@@ -139,6 +152,7 @@ async function main() {
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Mật khẩu", { exact: true }).fill(password);
     const submitted = performance.now();
+    traffic?.focusRoute("/dashboard");
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     await page.waitForURL("**/dashboard");
     await expect(page.getByTestId("Tổng đơn hàng")).toHaveText(
@@ -153,11 +167,7 @@ async function main() {
       status: "success",
     });
     record("login_form_to_data", performance.now() - start);
-    for (
-      let sample = 1;
-      sample < Number(process.env.PERF_LOGIN_SAMPLES || 1);
-      sample++
-    ) {
+    for (let sample = 1; sample < plan.logins; sample++) {
       const loggedOut = await context.request.post(base + "/api/auth/logout", {
         headers: {
           Origin: base,
@@ -198,12 +208,24 @@ async function main() {
       ["Cài đặt", "Cài đặt", "/api/audit"],
       ["Tổng quan", "Tổng quan hoạt động", "/api/dashboard/summary"],
     ];
-    for (let cycle = 0; cycle < Number(process.env.PERF_CYCLES || 20); cycle++)
+    for (let cycle = 0; cycle < plan.cycles; cycle++)
       for (const [label, heading, endpoint] of routes) {
         phase = "navigation:" + label;
+        traffic?.focusRoute(
+          (
+            {
+              "Đơn hàng": "/orders",
+              "Báo cáo": "/reports",
+              "Người dùng": "/users",
+              "Đồng bộ dữ liệu": "/sync",
+              "Cài đặt": "/settings",
+              "Tổng quan": "/dashboard",
+            } as Record<string, string>
+          )[label],
+        );
         const t = performance.now();
         const response =
-          process.env.PERF_CACHE_MODE === "1"
+          process.env.PERF_CACHE_MODE !== "0"
             ? null
             : page
                 .waitForResponse(
@@ -252,11 +274,7 @@ async function main() {
             .click();
         }
       }
-    for (
-      let sample = 0;
-      sample < Number(process.env.PERF_API_SAMPLES || 0);
-      sample++
-    ) {
+    for (let sample = 0; sample < plan.apiSamples; sample++) {
       phase = "authenticated API";
       for (const endpoint of [
         "/api/session",
@@ -341,6 +359,8 @@ async function main() {
       requests: responses.length,
       loginAttempts,
       browserResources,
+      intentionalPacing: !!traffic,
+      traffic: traffic?.stats,
     };
     writeFileSync(
       "output/performance/" +
@@ -362,6 +382,7 @@ async function main() {
     );
   } finally {
     await browser?.close();
+    unlock?.();
     for (let offset = 0; offset < ids.length; offset += 100) {
       const r = await service
         .from("orders")
@@ -391,6 +412,8 @@ main().catch((e) => {
     JSON.stringify(
       {
         phase,
+        status: traffic?.blocked ? "BLOCKED" : "FAIL",
+        infrastructureReason: traffic?.blocked,
         samples,
         loginAttempts,
         responses,

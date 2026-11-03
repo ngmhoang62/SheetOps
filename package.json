@@ -23,7 +23,8 @@
     "backup:database": "tsx scripts/backup-database.ts",
     "dev:staging": "tsx scripts/start-staging.ts dev",
     "perf:benchmark": "tsx scripts/benchmark-performance.ts",
-    "test:product": "tsx scripts/verify-product.ts"
+    "test:product": "tsx scripts/verify-product.ts",
+    "test:preview:smoke": "tsx scripts/verify-preview-smoke.ts"
   },
   "engines": {
     "node": ">=22.12.0",
