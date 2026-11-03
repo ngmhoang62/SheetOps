@@ -1,5 +1,7 @@
 # Performance engineering verification — 2026-11-03
 
+For the later confirmed DDoS diagnosis, bounded test policy, fresh local regression and successful online smoke, see PERFORMANCE_FOLLOWUP.md and PREVIEW_TESTING.md. Historical sample values and earlier failed attempts below are preserved.
+
 This review supersedes the earlier no-client-cache conclusions in PERFORMANCE_VERIFICATION.md. Historical measurements remain unchanged. Work is restricted to dev, local optimized staging on 127.0.0.1:3001 and the protected dev Preview. No production deployment or migration is authorized by this task.
 
 ## Method and evidence

@@ -1,0 +1,22 @@
+# Bounded Preview verification
+
+The owner inspected Vercel Firewall Traffic on 2026-11-03: 211 challenged requests, all attributed to DDoS Mitigation, spike around 22:46–22:47 Asia/Bangkok (UTC+7). System Mitigations active, Custom Rules 0, Bot Protection inactive. This owner-supplied evidence identifies the earlier pre-application Security Checkpoint; it is not SheetOps RBAC/Auth failure. Preserve Firewall and Deployment Protection. Do not add bypass rules, create automation bypass grants or use a different identity/host to evade a challenge.
+
+## Test policy
+
+- Full mutation/security/Sheets regression runs on local staging port 3001: RUN_PRODUCT_TESTS=1 npm run test:product. The script refuses a Preview origin. Existing QA orders/users are preserved; managed output snapshots are restored before exact fixture cleanup. Never run the older empty-database cleanup suite against retained QA data.
+- Preview uses RUN_PREVIEW_SMOKE=1 npm run test:preview:smoke with existing authorized tool authentication supplied securely in the process environment. No credential is printed or committed. Do not use vercel curl to generate a new automation grant. No firewall/protection mutation is part of the script.
+- One cross-process lock at output/performance/preview-test.lock prevents overlapping Preview runs. If a process crashes, inspect its recorded PID and confirm that it has ended before removing its stale lock.
+- All same-origin Preview browser requests pass through two bounded lanes: one application dispatch/API operation and one static asset. Application starts are spaced at least 2 seconds, assets at least 150 ms. API/asset operations await full responses; HTML/RSC route operations release at headers because streamed routes can depend on a later module/API read. The controlled-operation concurrency is at most 2 (application 1, asset 1); it is not a count of still-open RSC body streams. Hard caps: 80 requests total, 24 application requests.
+- The smoke suppresses speculative prefetches for routes outside its current intended destination, before sending them to Vercel. Requested navigation and all authorization still execute normally. This is a test-only traffic reduction; application prefetch settings remain unchanged. Skipped prefetches and header-only route operations are counted explicitly.
+- A Vercel challenge stops queued requests immediately. No automatic retry or loop follows it. Record BLOCKED and the infrastructure reason; do not treat challenge HTML as an application's JSON authorization result. Traffic-budget exhaustion is a test-control limit, not proof of DDoS or an app bug.
+- The access probe runs before creating any temporary QA identity. If access works, one synthetic staging Admin is created for a single password login, loaded Dashboard/Orders/Reports/Sync, connection/Preview Import reads, one CSV response and logout. No order CRUD, Confirm Import, Sheets export or email is sent from this smoke. Its identity/audit fixtures are removed and retained data is checked afterward.
+- Preview benchmark defaults are one cycle, one login, zero API-probe loops, 300 orders. Larger loops, 2,000-row seeding and responsive sweeps are rejected before fixture creation. Use local staging for repeated performance statistics.
+
+## Interpreting evidence
+
+Pacing deliberately adds waiting. These smoke timings are NOT product-latency benchmarks and must not replace the original before/after samples in PERFORMANCE_RESULTS.md. The smoke JSON reports actual request counts, peak concurrency, completed checks, status and retained-data verification. Raw artifacts remain ignored under output/performance; only sanitized summaries belong in Git.
+
+Use a configured Playwright expect instance for this paced suite; expect.configure returns a new instance and does not mutate the imported expect. A failed harness assertion must remain in the attempt history. Retry only after investigating/fixing the harness or after an actual infrastructure state change, within the same bounded policy. Do not relabel an unexplained assertion failure as infrastructure BLOCKED.
+
+Use SMOKE_TARGET=local for a local calibration of the same paced smoke on 127.0.0.1:3001 before retrying Preview; its report is local-paced-smoke.json. The default target is Preview. Calibration uses isolated staging, never production. The initial overly strict whole-response serialization could hold a Flight stream while its dependent API was queued; a dependency regression test now prevents that harness deadlock.

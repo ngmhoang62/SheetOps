@@ -1,5 +1,7 @@
 # Performance results and release decision — 2026-11-03
 
+Latest follow-up: [2026-11-04 verification](PERFORMANCE_FOLLOWUP.md) confirms the historical DDoS Mitigation cause, fresh local regression and a successful bounded online Preview smoke. The distributions and earlier BLOCKED checkpoint below remain historical; full online mutation/mobile regression is not part of the new read-only smoke.
+
 Status: **PARTIALLY VERIFIED — ONLINE REGRESSION BLOCKED**. Code is on dev, production main remains 0506323f068833bc55e6718350b7f2798797255e. See PERFORMANCE_ENGINEERING.md for the investigation, trust model and limitations; HIDE_RESTORE.md for business/API/migration contracts.
 
 ## Navigation before and after
