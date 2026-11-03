@@ -1,13 +1,14 @@
 # Phase 2 limitations and owner actions
 
-## External acceptance gates
+## Current Phase 3 gates
 
-- No permanent Auth user/Admin existed at inspection. Disposable verification accounts are removed after testing; they do not become an owner account. Create an intended Auth account and use the trusted bootstrap script as documented in `DATABASE.md`.
-- `Source_Orders` is reachable with canonical headers but initially contains no data rows. The application and verification scripts never write this tab. A complete real-source preview → import → UI acceptance requires owner-provided development rows. Database import transactions are independently tested with disposable fixtures; that is not evidence that a real source import occurred.
-- Vercel production has the required Supabase URL/public/secret variable names and its public URL targets Singapore. Initial metadata inspection found no Google service-account variables, spreadsheet ID, cron secret, business timezone or APP_ORIGIN. The owner must configure missing values privately in the existing project and redeploy; local secrets are not automatically uploaded.
-- Invitation handling is implemented, but custom SMTP, actual inbox delivery, redirect allowlisting and invited-user password setup require owner verification. The UI reports provider acceptance without claiming delivery.
-- A local authenticated cron invocation is separate from a scheduled production run. Registration and first scheduled execution require production configuration and observation after deployment.
-- Deployment protection remains enabled. A build marked READY is not proof of successful protected runtime business workflows.
+Production has a permanent Admin, 300 Orders, configured Sheets/SMTP and verified invitation/password/Viewer/disable UAT. Manual 300-row export hashes match staging/output/database. Earlier Phase 2 setup blockers are historical, not current instructions.
+
+Independent staging project/Auth users/Sheet/credentials are unavailable. Preview intentionally denies access with 503 until configured; staging CRUD/RLS/reliability/2000-order/load/restore acceptance is BLOCKED. See STAGING_SETUP.md and PHASE_3_VERIFICATION.md. No billing changes or production data copies were made.
+
+Scheduled production cron remains PENDING until actual cron-triggered evidence. The temporary 15:00 test on 2026-11-03 must finish its observation window before main is restored to 23:00 by the authorized monitor. dev already carries the official schedule. Production change is maintenance only, not a Phase 3 release.
+
+Leaked password protection is a current Advisor WARN; the verified Free plan cannot enable this Pro+ feature. Managed daily backups/PITR are not claimed available. Owner-controlled encrypted backups and isolated restore drill remain required. GitHub connector shows admin permission/public repository; protection settings could not be read/written by the exposed connector, and unauthenticated REST requires authentication. Owner must confirm protection in Settings; no lockout-inducing policy was applied.
 
 ## MVP operational limits
 

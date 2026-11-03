@@ -32,7 +32,7 @@ There is no credential-free demo login in the current production flow. Existing 
 | `npm run test:cloud`                      | Opt-in disposable Auth/PostgreSQL/RLS checks                         |
 | `npm run test:e2e`                        | Opt-in browser/API/real Sheets checks against a local server         |
 
-Cloud/E2E commands require `RUN_CLOUD_TESTS=1`, authorized credentials, and an empty development database. E2E also requires blank/header-only application-managed sheet tabs and an installed Chrome browser. It defaults to an already running production server at `http://127.0.0.1:3001`; set `E2E_BASE_URL` only to another localhost URL. Test credentials are generated in memory and never printed. Both managed tabs are restored and read back before exact-ID cloud fixture cleanup; Source_Orders is untouched. Do not run these scripts on real business data.
+Cloud/E2E commands require RUN_CLOUD_TESTS=1, APP_ENV=staging, an explicit independent staging ref and credentials, and an empty staging database. Production is always rejected. E2E also requires blank/header-only application-managed sheet tabs and an installed Chrome browser. It defaults to an already running production server at `http://127.0.0.1:3001`; set `E2E_BASE_URL` only to another localhost URL. Test credentials are generated in memory and never printed. Both managed tabs are restored and read back before exact-ID cloud fixture cleanup; Source_Orders is untouched. Do not run these scripts on real business data.
 
 ## Implementation
 
@@ -63,6 +63,6 @@ docs/                    architecture, database/API/setup/deployment and evidenc
 
 [.env.example](.env.example) lists public Supabase URL/key and server-only Supabase secret, service-account identity/private key, spreadsheet ID, cron secret, business timezone and canonical `APP_ORIGIN`. Do not prefix privileged credentials with `NEXT_PUBLIC_`. Local values are not automatically copied to Vercel.
 
-The target database started empty, and Source_Orders initially contained only valid headers. The owner must supply the first permanent Admin account and source development rows to finish the real initial-import acceptance flow. Production requires its own Google/cron environment configuration, Supabase redirect URLs, SMTP/invitation delivery check and verification of an actual scheduled run. See [deployment instructions](docs/DEPLOYMENT.md).
+Production has an Admin, 300 imported synthetic orders, working Sheets manual export, and verified invitation/password/Viewer/disable UAT. Scheduled cron acceptance is tracked separately; see docs/PHASE_2_ACCEPTANCE.md.
 
-Operational limits and unverified cases are explicit in [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). Do not describe a successful build or mocked test as proof that all cloud workflows are complete. Phase 3 production hardening is outside this task.
+Phase 3 development is on dev. Push dev → isolated Vercel Preview → staging QA → PR to main → owner approval → production. See [Phase 3 verification](docs/PHASE_3_VERIFICATION.md), [release process](docs/RELEASE_PROCESS.md), [security](docs/SECURITY.md) and [backup/restore](docs/BACKUP_RESTORE.md). No automatic migration or seed occurs on deploy. Never reuse production credentials for staging; cloud cleanup suites now refuse the production ref even when it is empty.
