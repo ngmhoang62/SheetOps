@@ -22,3 +22,5 @@ backups/
 *.dump
 *.sql.gz
 *.age
+
+.vercel
