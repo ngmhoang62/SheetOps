@@ -1,5 +1,11 @@
 # Phase 1 verification record
 
+## Scheduled production cron acceptance — 2026-11-03
+
+PASS: actual scheduled export run e64f6171-36e3-46c1-a803-3fcd966db0cd, trigger_type=cron, key daily:2026-11-03, started 08:37:27 UTC (15:37:27 UTC+7), finished 08:37:33 UTC, success, 300 rows. Transactional export audit exists. Independent read-only Google API checks found canonical seven-column headers, 300 rows each in Export_Orders and Export_Staging, both matching database hash 7a7d74e4ed42c94789cec9fec765892d2f7500d300bf92a84598caf408c959fd. No endpoint was invoked manually for this production gate and Source_Orders was not written.
+
+The temporary 15:00 test is complete. This maintenance checkpoint restores vercel.json to 0 16 * * * (23:00 UTC+7) on main only, with no Phase 3 merge. Old PENDING schedule notes below are historical and superseded by this observed result. Production remains 300 Orders and 2 Auth users; the audit count increased only by the legitimate scheduled export event (306 to 307).
+
 Current acceptance summary: [PHASE_2_ACCEPTANCE.md](PHASE_2_ACCEPTANCE.md). Historical results below retain their original context; the summary records later successful source import, invitation and owner disable acceptance without claiming scheduled production cron has run.
 
 ## Production export and scheduled test — 2026-11-03

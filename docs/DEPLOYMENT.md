@@ -27,7 +27,7 @@ The default invitation template can use `{{ .ConfirmationURL }}`. Admin invitati
 
 ## Cron
 
-Temporary owner-authorized test on 2026-11-03: `vercel.json` is set to `0 8 * * *` (15:00 UTC+7). This replaces the normal schedule only for the acceptance test. A follow-up monitor checks for an actual production `trigger_type=cron` result during 15:00–15:59, verifies the Sheets snapshot read-back and audit evidence, then restores `0 16 * * *` (23:00). If no run appears by 16:10, report the missing execution and restore the normal schedule; never manufacture scheduled-run evidence by invoking the endpoint manually. The local follow-up requires Codex/the computer to be available; Vercel's scheduled execution itself runs in the cloud. Until the restoration commit is deployed, the temporary schedule remains active.
+The temporary 15:00 test on 2026-11-03 completed successfully at 15:37 UTC+7: 300 rows, actual cron trigger, matching output/staging/database snapshot and audit. The official schedule is restored to 0 16 * * * (23:00 UTC+7); see the latest VERIFICATION.md evidence. No Phase 3 code was merged into main.
 
 The normal schedule for `/api/cron/daily-export` is `0 16 * * *`, equivalent to 23:00 Asia/Ho_Chi_Minh. The host sends `Authorization: Bearer <CRON_SECRET>`; query-string credentials are not supported. Cookie-authenticated users cannot call this endpoint without the cron secret. Manual and scheduled exports share the same service and database lock.
 
