@@ -1,5 +1,7 @@
 # SheetOps
 
+Owner-approved production release (2026-11-04): [release evidence and trial instructions](docs/RELEASE_2026_11_04.md), [PR #2](https://github.com/ngmhoang62/SheetOps/pull/2). Earlier staging-only release gates below are historical; consult this release record and PR status before reapplying migrations.
+
 Development UI follow-up: [paginated audit verification](docs/UI_AUDIT_VERIFICATION.md) and [retry/reconciliation behavior](docs/RETRY_BEHAVIOR.md). The new audit migration is staging-only until a separately approved production release.
 
 Internal order operations and analytics workspace with Vietnamese UI, Next.js App Router, Supabase PostgreSQL/Auth, server-enforced roles, and Google Sheets snapshot synchronization.

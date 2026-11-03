@@ -1,5 +1,7 @@
 # Release process
 
+2026-11-04: the owner explicitly approved PR #2, reviewed production migrations and final production release. See RELEASE_2026_11_04.md and PR #2 for current evidence. Earlier dev-only restrictions below describe the period before this approval; they do not authorize future releases or imply these migrations should be reapplied.
+
 main is production; dev is development/Preview. Default work remains on dev. Conventional Commits, no history rewriting and no force push. Owner approval is required before merging dev into main or promoting a deployment.
 
 2026-11-03 exception: the owner explicitly authorized creating, reviewing and merging the current Phase 3 PR, then verifying production. This is release-specific approval, not permanent authorization for future releases. PR #1 was created through the existing authenticated Git credential after the connected GitHub app rejected PR creation with 403. Review must be recorded honestly (the owner cannot approve their own PR as an independent reviewer), CI must pass on the final head, and merge must use the reviewed head SHA. No production migrations/seeds are part of this release.

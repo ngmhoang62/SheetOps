@@ -47,6 +47,8 @@ See STAGING_SETUP.md for all Preview variables and exact redirect configuration.
 
 ## Later performance/visibility release gate
 
+Update 2026-11-04: owner approved final release through PR #2. Both visibility/audit migrations are now applied once to production with preserved data; see RELEASE_2026_11_04.md for actual recorded versions, checks and remaining browser-verification limit. The staging-only status in the following historical gate is superseded by that record.
+
 The dev performance work requires the reviewed order_visibility migration before a production rollout. It has only been applied on independent staging. See HIDE_RESTORE.md for grants, compatibility and migration-history checks, and PERFORMANCE_ENGINEERING.md for measured acceptance/remaining blockers. Do not merge this work or migrate production under the earlier PR #1 approval.
 
 Already-confirmed invited accounts use an explicitly requested password-recovery email to finish setup when the original one-use invite was consumed; they are not deleted/recreated. The password page accepts verified invite/recovery sessions, checks the active profile, saves the password, logs out, and goes to /login. Never change the authentication mode to Magic Link or log the session fragment. Preview SSO and platform Security Checkpoint are separate layers; keep protection enabled and do not interpret a challenge HTML response as an application's JSON 403.
