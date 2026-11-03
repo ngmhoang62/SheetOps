@@ -1,4 +1,12 @@
-import { body, checkOrigin, fail, json, requireActor } from "@/lib/server/http";
+import {
+  body,
+  checkOrigin,
+  fail,
+  HttpError,
+  json,
+  requireActor,
+} from "@/lib/server/http";
+import { invitationFailure, invitationOrigin } from "@/lib/invitations";
 import { inviteSchema } from "@/lib/server/users";
 import { privilegedClient } from "@/lib/supabase/server";
 export async function POST(request: Request) {
@@ -6,14 +14,33 @@ export async function POST(request: Request) {
     checkOrigin(request);
     const { db } = await requireActor(["admin"], "admin");
     const input = inviteSchema.parse(await body(request));
-    const origin = process.env.APP_ORIGIN;
-    if (!origin) throw new Error("APP_ORIGIN is required for invitations");
+    const origin = invitationOrigin(
+      process.env.APP_ORIGIN,
+      process.env.VERCEL_ENV === "production",
+    );
+    if (!origin)
+      throw new HttpError(
+        503,
+        "APP_ORIGIN chưa được cấu hình đúng. Quản trị viên cần kiểm tra URL ứng dụng.",
+        "INVITE_CONFIGURATION",
+      );
     const { data, error } =
       await privilegedClient().auth.admin.inviteUserByEmail(input.email, {
         redirectTo: new URL("/auth/accept", origin).href,
         data: { full_name: input.full_name },
       });
-    if (error) throw error;
+    if (error) {
+      const failure = invitationFailure(error);
+      console.warn(
+        JSON.stringify({
+          event: "invitation_failed",
+          stage: "auth",
+          code: failure.code,
+          providerStatus: error.status ?? null,
+        }),
+      );
+      throw new HttpError(failure.status, failure.message, failure.code);
+    }
     const saved = await db.rpc("manage_profile", {
       target: data.user.id,
       full_name_input: input.full_name,
@@ -22,7 +49,20 @@ export async function POST(request: Request) {
       active_input: true,
     });
     // If profile provisioning fails, no permission is granted. Retrying can be handled through Admin recovery.
-    if (saved.error) throw saved.error;
+    if (saved.error) {
+      console.warn(
+        JSON.stringify({
+          event: "invitation_failed",
+          stage: "profile",
+          code: "INVITE_PROFILE_FAILED",
+        }),
+      );
+      throw new HttpError(
+        500,
+        "Supabase đã tiếp nhận lời mời nhưng chưa cấp được quyền ứng dụng. Liên hệ quản trị viên để kiểm tra profile; không gửi lại liên tục.",
+        "INVITE_PROFILE_FAILED",
+      );
+    }
     return json(
       {
         profileId: data.user.id,

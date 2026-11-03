@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { acceptInvitationSession } from "@/lib/invitations";
 import { browserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { useWorkspace } from "@/components/workspace-provider";
@@ -10,15 +11,40 @@ export default function Accept() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [pending, setPending] = useState(false);
+  const initialization = useRef<Promise<boolean> | null>(null);
   useEffect(() => {
-    const db = browserClient();
-    void db.auth.getSession().then(({ data }) => {
-      setReady(!!data.session);
-      if (!data.session)
+    let active = true;
+    if (!initialization.current) {
+      const fragment = window.location.hash;
+      // Remove credentials from the address bar before client initialization.
+      window.history.replaceState(
+        window.history.state,
+        "",
+        window.location.pathname,
+      );
+      initialization.current = (async () => {
+        const valid = await acceptInvitationSession(
+          browserClient().auth,
+          fragment,
+        );
+        if (!valid) return false;
+        // Fresh server-side profile check also rejects disabled/unprovisioned users.
+        const response = await fetch("/api/session", { cache: "no-store" });
+        return response.ok;
+      })().catch(() => false);
+    }
+    void initialization.current.then((valid) => {
+      if (!active) return;
+      setReady(valid);
+      if (!valid)
         setError(
-          "Lời mời không hợp lệ hoặc đã hết hạn. Hãy mở lại liên kết trong email.",
+          "Lời mời không hợp lệ, đã hết hạn hoặc tài khoản chưa được cấp quyền. Hãy mở lại liên kết trong email hoặc liên hệ quản trị viên.",
         );
     });
+    return () => {
+      active = false;
+    };
   }, []);
   return (
     <section className="login-form">
@@ -27,16 +53,27 @@ export default function Accept() {
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          const { error } = await browserClient().auth.updateUser({ password });
-          if (error) {
+          if (!ready || pending) return;
+          setPending(true);
+          setError("");
+          try {
+            const allowed = await fetch("/api/session", { cache: "no-store" });
+            if (!allowed.ok) throw new Error("Account unavailable");
+            const { error } = await browserClient().auth.updateUser({
+              password,
+            });
+            if (error) throw error;
+            setPassword("");
+            await refresh();
+            router.replace("/dashboard");
+            router.refresh();
+          } catch {
             setError(
               "Không thể đặt mật khẩu. Mật khẩu cần đủ mạnh và khác mật khẩu cũ.",
             );
-            return;
+          } finally {
+            setPending(false);
           }
-          await refresh();
-          router.replace("/dashboard");
-          router.refresh();
         }}
       >
         <label className="field">
@@ -44,6 +81,8 @@ export default function Accept() {
           <input
             type="password"
             minLength={12}
+            maxLength={72}
+            disabled={!ready || pending}
             autoComplete="new-password"
             required
             value={password}
@@ -55,8 +94,8 @@ export default function Accept() {
             {error}
           </p>
         )}
-        <Button type="submit" disabled={!ready}>
-          Lưu mật khẩu
+        <Button type="submit" disabled={!ready || pending}>
+          {pending ? "Đang lưu…" : "Lưu mật khẩu"}
         </Button>
       </form>
     </section>

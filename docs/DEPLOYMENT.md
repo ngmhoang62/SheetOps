@@ -17,6 +17,14 @@ Use secret variable types for server credentials. Do not paste values into chat.
 
 In [Supabase Auth URL configuration](https://supabase.com/dashboard/project/ubaxgkqkfcrqbyshkidz/auth/url-configuration), set the canonical Site URL and allow the production `/auth/accept`, `/auth/callback`, and explicit development callback URLs used by the team. Keep public signup disabled. Configure custom SMTP and test a real invitation end-to-end; an accepted invite API response does not prove inbox delivery.
 
+### Invitation troubleshooting
+
+For Brevo, use `smtp-relay.brevo.com` with port **587 (STARTTLS)** or **465 (SSL/TLS)**, as documented in [Brevo's Supabase integration](https://developers.brevo.com/docs/supabase-smtp-integration). Port 586 is incorrect. On 2026-11-03, invitations timed out with Auth HTTP 504 / `request_timeout`; after the owner changed 586 to 587, the same allowed test address was invited successfully and the owner confirmed inbox receipt. No credentials or provider settings were changed by the agent.
+
+The default invitation template can use `{{ .ConfirmationURL }}`. Admin invitations do not support PKCE; they return an implicit session fragment to `/auth/accept`. The page explicitly calls `setSession`, scrubs the fragment, validates with `getUser`, and checks the fresh active application profile before enabling password setup. It does not use Magic Link sign-in. `/auth/callback` retains code exchange and also accepts a fixed `type=invite` token-hash template if explicitly configured; callback responses are private/no-store with no-referrer. Do not publish invitation URLs, tokens, or full request/provider error objects in logs.
+
+`INVITE_TIMEOUT` means delivery is unknown, not rejected. Inspect Auth logs, the provider's transactional logs and the recipient's inbox before retrying. `INVITE_AUTH_FAILED` requires checking provider/server errors; `INVITE_PROFILE_FAILED` means Auth accepted the request but application permissions were not provisioned. A missing profile must be repaired through an authorized Admin operation; never grant permission from user metadata. A successful API response alone is never an inbox or password-login PASS.
+
 ## Cron
 
 `vercel.json` declares `/api/cron/daily-export` at `0 16 * * *`, equivalent to 23:00 Asia/Ho_Chi_Minh. The host sends `Authorization: Bearer <CRON_SECRET>`; query-string credentials are not supported. Cookie-authenticated users cannot call this endpoint without the cron secret. Manual and scheduled exports share the same service and database lock.

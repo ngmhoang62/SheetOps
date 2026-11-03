@@ -115,8 +115,8 @@ export function UsersView() {
         <DialogContent>
           <DialogTitle>Mời người dùng</DialogTitle>
           <DialogDescription>
-            Supabase tiếp nhận lời mời; cần cấu hình SMTP và redirect URL. Hệ
-            thống chưa xác minh thư đến hộp thư người nhận.
+            Gửi liên kết để người nhận thiết lập mật khẩu. Sau khi gửi, hãy kiểm
+            tra hộp thư và thư rác; hệ thống chưa tự xác minh thư đã đến.
           </DialogDescription>
           <form
             onSubmit={async (e) => {
