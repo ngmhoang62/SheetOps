@@ -17,6 +17,8 @@ No Orders, Source_Orders or managed export tabs were modified. A read-only datab
 
 Local follow-up quality gates: lint, strict typecheck, formatting and production build passed; 65 unit tests passed (8 new invitation cases). The first sandbox build hit Windows `EPERM` creating a prerender output directory; rerunning the same build with approved filesystem access passed. Browser navigation to `/auth/accept#error=access_denied` removed the fragment and displayed the invalid/expired/unprovisioned message with password input and submit button disabled. This proves the invalid-link branch, not successful inbox-to-password acceptance.
 
+Application commit `7c79c6e97020778d07035c28be4b8870e73df60f` was pushed to main and production deployment `dpl_GNqBg9gRoTCYFfYYDQkacrf5dNT2` reached READY. The canonical `https://sheetops.vercel.app/auth/accept` returned HTTP 200 and the updated password form markup. Local HTTP checks also confirmed anonymous invitation POST = 401, foreign-origin invitation POST = 403, and invalid callback = 307 to the fixed login error URL with private/no-store and no-referrer headers. Supabase Auth logs recorded `user_invited`, HTTP 200 at 06:58:20 UTC after the port correction. The owner has been asked to complete the Admin UI/recipient/password acceptance steps; these remain unverified until observed.
+
 Verified locally on **2026-11-02 (Asia/Bangkok, UTC+7)** in the selected project root, using Node.js 24.19.0 and npm 11.17.0 on Windows. No Supabase, Google Cloud, Google Sheets, or Vercel resources were accessed or modified.
 
 ## Automated checks
