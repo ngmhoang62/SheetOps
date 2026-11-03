@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { AuditView } from "./audit-view";
 import { toast } from "sonner";
 import { roleLabels, roles, type Role } from "@/lib/domain";
 import type { Profile } from "@/lib/contracts";
@@ -476,19 +477,10 @@ export function SyncView() {
     </>
   );
 }
-type Audit = {
-  id: string;
-  actor_id: string | null;
-  action: string;
-  resource_type: string;
-  resource_id: string;
-  created_at: string;
-};
 export function SettingsView() {
-  const { organization, revision, refresh, changed } = useWorkspace();
+  const { organization, refresh, changed } = useWorkspace();
   const [name, setName] = useState(organization);
   const [pending, setPending] = useState(false);
-  const audit = useResource<Audit[]>("/api/audit", revision);
   return (
     <>
       <PageHeading
@@ -542,63 +534,7 @@ export function SettingsView() {
           </Button>
         </form>
       </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <h2>Nhật ký kiểm toán</h2>
-          <span className="outline-pill">100 sự kiện gần nhất</span>
-        </div>
-        <Notice {...audit} />
-        {audit.data?.length ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Thời gian (UTC+7)</th>
-                  <th>Người thực hiện</th>
-                  <th>Thao tác</th>
-                  <th>Đối tượng</th>
-                  <th>Mã đối tượng</th>
-                </tr>
-              </thead>
-              <tbody>
-                {audit.data.map((a) => (
-                  <tr key={a.id}>
-                    <td>{formatTime(a.created_at)}</td>
-                    <td>{a.actor_id ?? "Hệ thống"}</td>
-                    <td>
-                      {{
-                        created: "Tạo",
-                        updated: "Cập nhật",
-                        deleted: "Ẩn (lịch sử)",
-                        hidden: "Ẩn đơn hàng",
-                        restored: "Kích hoạt lại",
-                        import: "Nhập Sheets",
-                        export: "Xuất Sheets",
-                      }[a.action] ?? a.action}
-                    </td>
-                    <td>
-                      {{
-                        orders: "Đơn hàng",
-                        profiles: "Người dùng",
-                        workspace_settings: "Cài đặt",
-                        sync_runs: "Đồng bộ",
-                      }[a.resource_type] ?? a.resource_type}
-                    </td>
-                    <td className="resource-id">{a.resource_id}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          !audit.loading && (
-            <EmptyState
-              title="Chưa có sự kiện"
-              description="Các thao tác được ghi trên PostgreSQL."
-            />
-          )
-        )}
-      </section>
+      <AuditView />
     </>
   );
 }

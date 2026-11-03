@@ -95,9 +95,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="workspace-avatar">S</span>
           <span>
             <strong>{organization}</strong>
-            <small>Không gian nội bộ</small>
+            <small>Tổ chức nội bộ</small>
           </span>
-          <ChevronDown size={14} />
         </div>
         <p className="nav-heading">KHÔNG GIAN LÀM VIỆC</p>
         <nav aria-label="Điều hướng chính">

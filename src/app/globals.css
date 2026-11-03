@@ -327,9 +327,6 @@ hr {
   color: #50816a;
   font-weight: 650;
 }
-.workspace-chip > svg {
-  color: #91a097;
-}
 .nav-heading {
   font-size: 12px;
   font-weight: 600;
@@ -922,6 +919,7 @@ tfoot td {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 22px;
+  align-items: start;
 }
 .table-note {
   padding: 16px 23px;
@@ -1044,6 +1042,65 @@ tfoot td {
 .orders-panel .filter-wrapper {
   padding: 0 23px 19px;
   margin: 0;
+}
+.orders-panel .status-filter {
+  flex: 0 1 220px;
+  min-width: 180px;
+  max-width: 240px;
+}
+.orders-panel .status-filter select {
+  width: 100%;
+}
+.audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+.audit-filter {
+  display: grid;
+  gap: 8px;
+  flex: 0 1 180px;
+  min-width: 150px;
+  font-size: 15px;
+}
+.audit-search {
+  flex: 1 1 300px;
+  max-width: 420px;
+}
+.audit-filter input,
+.audit-filter select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 16px;
+}
+.audit-notice {
+  padding: 0 24px 12px;
+  color: var(--muted);
+}
+.audit-table {
+  min-width: 1040px;
+}
+.audit-table td {
+  vertical-align: top;
+}
+.audit-table th:first-child,
+.audit-table td:first-child {
+  white-space: nowrap;
+}
+.audit-target {
+  display: block;
+  margin-top: 4px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.audit-detail {
+  min-width: 220px;
+  max-width: 360px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .search-field {
   display: flex;
@@ -1436,10 +1493,6 @@ td select {
   font-size: 15px;
   color: #a6b098;
   margin: 10px 0 18px;
-}
-.resource-id {
-  font-size: 13px;
-  font-family: monospace;
 }
 .login-page {
   display: grid;

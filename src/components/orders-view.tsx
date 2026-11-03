@@ -38,6 +38,11 @@ import {
 import { toast } from "sonner";
 import { canWrite, statuses, statusLabels } from "@/lib/domain";
 import { defaultFilters, formatDate, type Filters } from "@/lib/analytics";
+import {
+  orderFilter,
+  type OrderFilterChoice,
+  type OrderVisibility,
+} from "@/lib/order-filter";
 import { useWorkspace } from "./workspace-provider";
 import {
   ConfirmDialog,
@@ -76,7 +81,7 @@ export function OrdersView() {
   });
   const [editing, setEditing] = useState<Order | "new" | null>(null);
   const [deleting, setDeleting] = useState<Order | null>(null);
-  const [visibility, setVisibility] = useState("all");
+  const [visibility, setVisibility] = useState<OrderVisibility>("all");
   const [pendingVisibility, setPendingVisibility] = useState<
     Record<string, boolean>
   >({});
@@ -279,22 +284,18 @@ export function OrdersView() {
             />
           </label>
         </div>
-        <label className="field">
-          Hiển thị đơn hàng
-          <select
-            aria-label="Hiển thị đơn hàng"
-            value={visibility}
-            onChange={(e) => {
-              setVisibility(e.target.value);
-              setPagination((p) => ({ ...p, pageIndex: 0 }));
-            }}
-          >
-            <option value="all">Tất cả</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="hidden">Đã ẩn</option>
-          </select>
-        </label>
-        <FilterBar value={filters} onChange={changeFilters} />
+        <FilterBar
+          value={filters}
+          onChange={changeFilters}
+          orderDisplay={{
+            value: visibility !== "all" ? visibility : filters.status,
+            onChange: (choice) => {
+              const next = orderFilter(choice as OrderFilterChoice);
+              setVisibility(next.visibility);
+              changeFilters({ ...filters, status: next.status });
+            },
+          }}
+        />
         {resource.refreshing && (
           <p role="status">
             Đang cập nhật kết quả; dữ liệu trước vẫn hiển thị.

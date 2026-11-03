@@ -394,8 +394,7 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
               </table>
             </div>
             <p className="table-note">
-              CSV xuất các đơn hàng chi tiết theo bộ lọc, không bao gồm đơn đã
-              xóa.
+              CSV chỉ xuất đơn đang hoạt động theo bộ lọc.
             </p>
           </section>
         </div>
@@ -453,7 +452,7 @@ export function AnalyticsView({ report = false }: { report?: boolean }) {
         </section>
       )}
       <p className="data-note">
-        Dữ liệu PostgreSQL · Doanh thu chỉ tính đơn hoàn thành, chưa bị xóa
+        Doanh thu chỉ tính đơn hoàn thành đang hoạt động
       </p>
     </>
   );

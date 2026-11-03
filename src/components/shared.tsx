@@ -35,10 +35,12 @@ export function FilterBar({
   value,
   onChange,
   children,
+  orderDisplay,
 }: {
   value: Filters;
   onChange: (filters: Filters) => void;
   children?: ReactNode;
+  orderDisplay?: { value: string; onChange: (value: string) => void };
 }) {
   return (
     <div className="filter-wrapper">
@@ -69,12 +71,14 @@ export function FilterBar({
           <span className="sr-only">Lọc trạng thái</span>
           <select
             aria-label="Lọc trạng thái"
-            value={value.status}
+            value={orderDisplay?.value ?? value.status}
             onChange={(e) =>
-              onChange({
-                ...value,
-                status: e.target.value as Filters["status"],
-              })
+              orderDisplay
+                ? orderDisplay.onChange(e.target.value)
+                : onChange({
+                    ...value,
+                    status: e.target.value as Filters["status"],
+                  })
             }
           >
             <option value="all">Tất cả trạng thái</option>
@@ -83,12 +87,21 @@ export function FilterBar({
                 {statusLabels[s]}
               </option>
             ))}
+            {orderDisplay && (
+              <optgroup label="Hiển thị đơn hàng">
+                <option value="active">Đang hoạt động</option>
+                <option value="hidden">Đã ẩn</option>
+              </optgroup>
+            )}
           </select>
         </label>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onChange({ ...defaultFilters, search: value.search })}
+          onClick={() => {
+            orderDisplay?.onChange("all");
+            onChange({ ...defaultFilters, search: value.search });
+          }}
         >
           <RotateCcw size={14} /> Đặt lại
         </Button>
