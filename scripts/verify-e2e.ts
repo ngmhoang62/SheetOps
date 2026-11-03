@@ -121,6 +121,7 @@ async function main() {
   const results: { check: string; status: string }[] = [];
   let step = "initialization";
   const code = "E2E-" + randomUUID().slice(0, 8).toUpperCase();
+  expect.configure({ timeout: 15000 });
   const pass = (check: string) => results.push({ check, status: "PASS" });
   async function login(
     context: BrowserContext,
@@ -131,12 +132,14 @@ async function main() {
     page.on("response", async (r) => {
       if (
         r.url().includes("/api/auth/login") ||
-        r.url().includes("/api/session")
+        r.url().includes("/api/session") ||
+        r.url().includes("/api/dashboard/summary")
       )
         console.log(
           JSON.stringify({
             path: new URL(r.url()).pathname,
             status: r.status(),
+            responseStartMs: Math.round(r.request().timing().responseStart),
             error: !r.ok()
               ? await r
                   .json()
@@ -149,11 +152,34 @@ async function main() {
     await page.goto(base + "/login");
     await page.getByLabel("Email", { exact: true }).fill(account.email);
     await page.getByLabel("Mật khẩu", { exact: true }).fill(account.password);
+    let sessionRequests = 0;
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/session") sessionRequests++;
+    });
+    const started = performance.now();
+    const summary = page
+      .waitForResponse(
+        (r) => r.url().includes("/api/dashboard/summary") && r.ok(),
+      )
+      .catch(() => null);
     await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
     await page.waitForURL("**/dashboard", { timeout: 15000 });
     await expect(
       page.getByRole("heading", { name: "Tổng quan hoạt động" }),
     ).toBeVisible();
+    await summary;
+    await expect(
+      page.getByText("Đang tải thống kê…", { exact: true }),
+    ).toHaveCount(0);
+    expect(sessionRequests).toBe(0);
+    console.log(
+      JSON.stringify({
+        metric: "login_to_loaded_dashboard_ms",
+        role: account.role,
+        value: Math.round(performance.now() - started),
+        sessionRequestsAfterSubmit: sessionRequests,
+      }),
+    );
     return page;
   }
   try {
@@ -192,6 +218,103 @@ async function main() {
     const adminContext = await browser.newContext();
     const admin = await login(adminContext, users[0]);
     pass("Admin browser login and protected dashboard");
+    if (JSON.stringify(sourceRows) !== JSON.stringify(expectedBusiness))
+      throw new Error(
+        "Full import timing requires exact deterministic synthetic Source_Orders",
+      );
+    await admin.goto(base + "/sync");
+    for (const width of [1366, 390]) {
+      await admin.setViewportSize({ width, height: 844 });
+      await expect(
+        admin.getByRole("button", { name: "Xem trước nhập", exact: true }),
+      ).toBeVisible();
+      expect(
+        await admin.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await admin.setViewportSize({ width: 1366, height: 844 });
+    await admin
+      .getByRole("button", { name: "Xem trước nhập", exact: true })
+      .click();
+    await admin
+      .getByRole("button", { name: "Xác nhận nhập 300 đơn", exact: true })
+      .click();
+    const importedResponse = admin.waitForResponse(
+      (r) => new URL(r.url()).pathname === "/api/sync/import/confirm",
+    );
+    await admin
+      .getByRole("dialog")
+      .getByRole("button", { name: "Xác nhận", exact: true })
+      .click();
+    const imported = await importedResponse;
+    expect(imported.status()).toBe(200);
+    const importedResult = (await imported.json()).data;
+    runIds.push(importedResult.runId);
+    expect(importedResult.rowCount).toBe(300);
+    const fixtureImport = await service
+      .from("orders")
+      .select("id,order_code")
+      .in(
+        "order_code",
+        generateOrders().map((o) => o.order_code),
+      );
+    if (fixtureImport.error) throw fixtureImport.error;
+    orderIds.push(...fixtureImport.data.map((o) => o.id));
+    expect(fixtureImport.data.length).toBe(300);
+    pass(
+      "Browser Preview and Confirm import exactly 300 deterministic staging orders; Sync fits laptop/mobile",
+    );
+    for (let cycle = 0; cycle < 3; cycle++) {
+      for (const [label, endpoint] of [
+        ["Đơn hàng", "/api/orders"],
+        ["Báo cáo", "/api/dashboard/summary"],
+        ["Tổng quan", "/api/dashboard/summary"],
+      ]) {
+        const started = performance.now();
+        const response = admin.waitForResponse(
+          (r) => new URL(r.url()).pathname === endpoint && r.ok(),
+        );
+        await admin
+          .getByRole("navigation", { name: "Điều hướng chính" })
+          .getByRole("link", { name: label, exact: true })
+          .click();
+        const loaded = await response;
+        await loaded.finished();
+        await expect(
+          admin.getByText(/Đang tải (thống kê|dữ liệu)…/, { exact: true }),
+        ).toHaveCount(0);
+        console.log(
+          JSON.stringify({
+            metric: "sidebar_to_data_ms",
+            page: label,
+            cycle,
+            value: Math.round(performance.now() - started),
+          }),
+        );
+      }
+    }
+    for (const width of [1366, 390]) {
+      await admin.setViewportSize({ width, height: 844 });
+      await expect(admin.locator(".demo-note")).toHaveCount(0);
+      expect(
+        await admin.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+      if (width === 390) {
+        await admin.getByRole("button", { name: "Mở điều hướng" }).click();
+        await expect(
+          admin.getByRole("navigation", { name: "Điều hướng chính" }),
+        ).toBeVisible();
+        await admin.getByRole("button", { name: "Đóng điều hướng" }).click();
+      }
+    }
+    await admin.setViewportSize({ width: 1366, height: 844 });
+    pass(
+      "Laptop/mobile dashboard fits viewport and removed sidebar note stays absent",
+    );
     step = "anonymous and cron protection";
     const anonymous = await browser.newContext();
     expect((await anonymous.request.get(base + "/api/orders")).status()).toBe(
@@ -209,6 +332,12 @@ async function main() {
     ).toBe(401);
     pass("Anonymous API and missing/wrong cron secret rejected");
     step = "browser CRUD";
+    // Remove only this run's imported fixture IDs before retained single-order assertions.
+    const removedImport = await service
+      .from("orders")
+      .delete()
+      .in("id", orderIds);
+    if (removedImport.error) throw removedImport.error;
     await admin.goto(base + "/orders");
     await admin
       .getByRole("button", { name: "Tạo đơn hàng", exact: true })
@@ -521,23 +650,51 @@ async function main() {
       );
       return;
     }
+    const ids = users.map((u) => u.id);
+    if (ids.length) {
+      const owned = await service
+        .from("orders")
+        .select("id")
+        .in("updated_by", ids);
+      if (owned.error) throw new Error("Cannot verify scoped fixture cleanup");
+      orderIds.push(...owned.data.map((row) => row.id));
+    }
+    const checkedCleanup = async (
+      operation: PromiseLike<{ error: unknown }>,
+    ) => {
+      const result = await operation;
+      if (result.error) {
+        results.push({
+          check:
+            "Fixture cleanup incomplete; inspect retained synthetic fixtures",
+          status: "FAIL",
+        });
+        process.exitCode = 1;
+      }
+    };
     const fixtures = await service
       .from("orders")
       .select("id")
       .eq("order_code", code);
     if (fixtures.data) orderIds.push(...fixtures.data.map((r) => r.id));
     if (orderIds.length)
-      await service.from("orders").delete().in("id", orderIds);
+      await checkedCleanup(service.from("orders").delete().in("id", orderIds));
     if (runIds.length) {
-      await service.from("audit_logs").delete().in("resource_id", runIds);
-      await service.from("sync_runs").delete().in("id", runIds);
+      await checkedCleanup(
+        service.from("audit_logs").delete().in("resource_id", runIds),
+      );
+      await checkedCleanup(service.from("sync_runs").delete().in("id", runIds));
     }
-    const ids = users.map((u) => u.id);
     if (ids.length) {
-      await service.from("audit_logs").delete().in("actor_id", ids);
-      await service.from("audit_logs").delete().in("resource_id", ids);
-      await service.from("profiles").delete().in("id", ids);
-      for (const id of ids) await service.auth.admin.deleteUser(id);
+      await checkedCleanup(
+        service.from("audit_logs").delete().in("actor_id", ids),
+      );
+      await checkedCleanup(
+        service.from("audit_logs").delete().in("resource_id", ids),
+      );
+      await checkedCleanup(service.from("profiles").delete().in("id", ids));
+      for (const id of ids)
+        await checkedCleanup(service.auth.admin.deleteUser(id));
     }
     console.log(
       JSON.stringify(

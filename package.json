@@ -20,7 +20,8 @@
     "start:staging": "tsx scripts/start-staging.ts",
     "build:staging": "tsx scripts/start-staging.ts build",
     "test:restore": "tsx scripts/verify-restore.ts",
-    "backup:database": "tsx scripts/backup-database.ts"
+    "backup:database": "tsx scripts/backup-database.ts",
+    "dev:staging": "tsx scripts/start-staging.ts dev"
   },
   "engines": {
     "node": ">=22.12.0",
