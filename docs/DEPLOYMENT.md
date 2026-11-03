@@ -27,7 +27,9 @@ The default invitation template can use `{{ .ConfirmationURL }}`. Admin invitati
 
 ## Cron
 
-`vercel.json` declares `/api/cron/daily-export` at `0 16 * * *`, equivalent to 23:00 Asia/Ho_Chi_Minh. The host sends `Authorization: Bearer <CRON_SECRET>`; query-string credentials are not supported. Cookie-authenticated users cannot call this endpoint without the cron secret. Manual and scheduled exports share the same service and database lock.
+Temporary owner-authorized test on 2026-11-03: `vercel.json` is set to `0 8 * * *` (15:00 UTC+7). This replaces the normal schedule only for the acceptance test. A follow-up monitor checks for an actual production `trigger_type=cron` result during 15:00–15:59, verifies the Sheets snapshot read-back and audit evidence, then restores `0 16 * * *` (23:00). If no run appears by 16:10, report the missing execution and restore the normal schedule; never manufacture scheduled-run evidence by invoking the endpoint manually. The local follow-up requires Codex/the computer to be available; Vercel's scheduled execution itself runs in the cloud. Until the restoration commit is deployed, the temporary schedule remains active.
+
+The normal schedule for `/api/cron/daily-export` is `0 16 * * *`, equivalent to 23:00 Asia/Ho_Chi_Minh. The host sends `Authorization: Bearer <CRON_SECRET>`; query-string credentials are not supported. Cookie-authenticated users cannot call this endpoint without the cron secret. Manual and scheduled exports share the same service and database lock.
 
 After a successful production deployment, inspect **Cron Jobs** in the existing project and verify registration. Trigger a run through the dashboard or a trusted server-side client that reads the secret from its environment; never place the secret in a command argument or URL. Check real `sync_runs`, output hash/rows, and runtime logs. Distinguish **manual invocation verified** from **scheduled execution verified**; the first observed scheduled run is a separate gate.
 

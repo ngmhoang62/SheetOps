@@ -2,6 +2,14 @@
 
 Current acceptance summary: [PHASE_2_ACCEPTANCE.md](PHASE_2_ACCEPTANCE.md). Historical results below retain their original context; the summary records later successful source import, invitation and owner disable acceptance without claiming scheduled production cron has run.
 
+## Production export and scheduled test — 2026-11-03
+
+The owner ran Export Now and observed matching Source business columns, staging and output. Read-only database verification found manual export run `1544dacc-78a3-43fb-882c-c0805cb84b9f`, status success, 300 rows, started 07:22:27 UTC and completed 07:22:32 UTC. The stored seven-column snapshot hash is `7a7d74e4ed42c94789cec9fec765892d2f7500d300bf92a84598caf408c959fd`. An independent readonly-scope Google Sheets API check confirmed both Export_Orders and Export_Staging have the exact canonical seven-column header, 300 rows and that exact stored hash; their six business columns also match Source_Orders, whose hash remains `2e1403702a4d74eac8ec9d78a9ea1dd0a2e4abcb3fd6342459bb9c0b81346fe2`. No Sheets writes or repeat exports were performed. Manual production export is PASS. Matching staging/output is expected; Source has six input columns while exports add updated_at.
+
+At inspection there were 2 persistent sync runs and 306 persistent audit events in PostgreSQL. The Admin endpoints read `sync_runs` (latest 50) and `audit_logs` (latest 100); these limits do not delete older rows. Browser cache clearing, another tab or another browser does not remove database records. No application retention cleanup is configured.
+
+The owner authorized a temporary 15:00 UTC+7 cron test today. The configured UTC schedule is temporarily `0 8 * * *`; Hobby can invoke anywhere in the scheduled hour. Scheduled execution remains PENDING until an actual cron-triggered database run and output read-back are observed. Restore the normal 23:00 schedule after success/failure or after the 16:10 observation deadline. Do not invoke the cron endpoint manually to satisfy this gate.
+
 ## Disabled-account UX follow-up — 2026-11-03
 
 The owner confirmed Admin disable denies the invited Viewer access (production UAT PASS), but the old proxy returned a bare 403 text page. The new flow separates revoked accounts from active users lacking an admin role. Revoked page requests clear the current browser's project session cookies, attempt local-scope sign-out and redirect to `/login?reason=account_disabled` (or `account_unavailable` for a missing profile). Login displays a static Vietnamese explanation. Session refresh/focus detection uses the same flow; APIs still enforce current roles/RLS and return structured 401/403 responses. Existing 60-second polling is retained, not realtime push revocation.
