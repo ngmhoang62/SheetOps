@@ -2,6 +2,8 @@
 
 main is production; dev is development/Preview. Default work remains on dev. Conventional Commits, no history rewriting and no force push. Owner approval is required before merging dev into main or promoting a deployment.
 
+2026-11-03 exception: the owner explicitly authorized creating, reviewing and merging the current Phase 3 PR, then verifying production. This is release-specific approval, not permanent authorization for future releases. PR #1 was created through the existing authenticated Git credential after the connected GitHub app rejected PR creation with 403. Review must be recorded honestly (the owner cannot approve their own PR as an independent reviewer), CI must pass on the final head, and merge must use the reviewed head SHA. No production migrations/seeds are part of this release.
+
 1. Fetch origin; check clean status and current refs. Bring approved main maintenance fixes into dev with a reviewed merge (especially the cron restoration); resolve locally without overwriting other work.
 2. Develop on dev. Run npm ci, lint, typecheck, unit tests, format check and build. Review migrations, secrets, security findings and dependency changes.
 3. Push dev, verify Actions and Preview SHA/READY. Independently confirm Preview points to staging. QA anonymous/Viewer/Editor/Admin, disabled sessions, import/export and failure cases on synthetic fixtures only.

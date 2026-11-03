@@ -2,6 +2,16 @@
 
 Status: **PARTIALLY COMPLETE — BLOCKED**. Independent staging, owner online login/Sheets QA, real integration tests, synthetic PostgreSQL restore and scheduled production cron now pass. Production encrypted offsite backup scheduling/full Auth recovery and release-governance confirmation remain pending. Nothing in this document authorizes merging dev to main.
 
+## Owner-approved release and Drive backup follow-up
+
+The owner subsequently explicitly authorized PR creation/review/merge to main, Drive organization, key co-location for demo and weekly Sunday 23:00 UTC+7 backup. This is specific release approval, not blanket future release authorization. PR https://github.com/ngmhoang62/SheetOps/pull/1 was created using existing authenticated Git credentials after connector 403. No credentials were logged.
+
+Created owner-private My Drive folder SheetOps, ID 1F4PM1lwEwbRDu2gU-hFW5yhaGaHCg6FO; moved the two verified spreadsheets from their verified root parent. Read-back confirmed both destination parent IDs and folder shared=false; spreadsheet IDs/content and individual sharing were preserved.
+
+Local weekly automation backup-sheetops-ch-nh-t-23h created with Sunday 23:00 recurrence. Job requires local Codex/Docker/network and reads only .env.backup.local. New backup utility pins the production database, dumps public/private/auth/migration schemas read-only, checks required table archive entries, encrypts and round-trip verifies before writing timestamped ignored artifacts. User explicitly requested key and encrypted archive in the same private folder for demo; this does not protect against compromise of the Drive account. No automatic pruning/permission broadening.
+
+Initial actual backup attempt failed at pg_dump DNS on the direct database host; no archive or key uploaded and no PASS claimed. Owner was asked to replace connection with Session pooler port 5432. Final first-backup/upload and release evidence follow after completion. Latest local lint/typecheck/82 tests/format/build PASS.
+
 ## Staging follow-up (later evidence supersedes initial blockers below)
 
 - Owner supplied staging ref msrmoffrfjhqijdfzzwm (Singapore) and independent Sheet 12JvBaJxXIaZxJr-Ck2qEBzpDPn16XwGCxv6v81G--SU. Initial public/private tables, migrations and Auth users were empty. Applied the five existing migration SQL files, unchanged, in order. Staging migration service versions are 20261103081516/18/21/23/25; production migration files/history were not renamed. Reconcile version mapping before introducing automatic CLI migration deployment; no automatic migration workflow exists currently.

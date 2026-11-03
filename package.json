@@ -19,7 +19,8 @@
     "seed:sheets": "tsx scripts/seed-source-orders.ts",
     "start:staging": "tsx scripts/start-staging.ts",
     "build:staging": "tsx scripts/start-staging.ts build",
-    "test:restore": "tsx scripts/verify-restore.ts"
+    "test:restore": "tsx scripts/verify-restore.ts",
+    "backup:database": "tsx scripts/backup-database.ts"
   },
   "engines": {
     "node": ">=22.12.0",
