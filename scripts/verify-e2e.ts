@@ -468,11 +468,11 @@ async function main() {
     pass("Editor cannot invoke privileged sync API");
     step = "delete, audit, CSV and cron";
     await admin
-      .getByRole("button", { name: "Xóa " + code, exact: true })
+      .getByRole("button", { name: "Ẩn " + code, exact: true })
       .click();
     await admin
       .getByRole("dialog")
-      .getByRole("button", { name: "Xóa đơn hàng", exact: true })
+      .getByRole("button", { name: "Ẩn đơn hàng", exact: true })
       .click();
     await expect(admin.getByRole("dialog")).toHaveCount(0);
     const audit = await adminContext.request.get(base + "/api/audit");

@@ -2369,3 +2369,14 @@ td,
     flex-direction: column;
   }
 }
+
+.order-hidden td {
+  background: #f3f5f4;
+  color: #68766f;
+}
+.order-hidden .code-cell {
+  text-decoration: line-through;
+}
+.order-hidden button {
+  opacity: 1;
+}

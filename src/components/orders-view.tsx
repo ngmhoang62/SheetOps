@@ -32,7 +32,8 @@ import {
   Pencil,
   Plus,
   Search,
-  Trash2,
+  EyeOff,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { canWrite, statuses, statusLabels } from "@/lib/domain";
@@ -75,8 +76,13 @@ export function OrdersView() {
   });
   const [editing, setEditing] = useState<Order | "new" | null>(null);
   const [deleting, setDeleting] = useState<Order | null>(null);
+  const [visibility, setVisibility] = useState("all");
+  const [pendingVisibility, setPendingVisibility] = useState<
+    Record<string, boolean>
+  >({});
   const writable = !!user && canWrite(user.role);
   const query = new URLSearchParams({
+    visibility,
     ...filters,
     search: filters.search ?? "",
     page: String(pagination.pageIndex + 1),
@@ -130,7 +136,20 @@ export function OrdersView() {
         accessorKey: "status",
         header: "Trạng thái",
         sortFn: "text",
-        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        cell: ({ row }) => (
+          <>
+            <StatusBadge status={row.original.status} />
+            {(row.original.deleted_at || pendingVisibility[row.id]) && (
+              <span className="count-pill">
+                {row.id in pendingVisibility
+                  ? pendingVisibility[row.id]
+                    ? "Đang ẩn…"
+                    : "Đang kích hoạt lại…"
+                  : "Đã ẩn"}
+              </span>
+            )}
+          </>
+        ),
       },
       {
         accessorKey: "total_amount",
@@ -151,27 +170,36 @@ export function OrdersView() {
             <Button
               variant="ghost"
               size="icon"
-              aria-label={`${writable ? "Sửa" : "Xem"} ${row.original.order_code}`}
+              aria-label={`${writable && !row.original.deleted_at ? "Sửa" : "Xem"} ${row.original.order_code}`}
               onClick={() => setEditing(row.original)}
             >
-              {writable ? <Pencil size={15} /> : <Eye size={15} />}
+              {writable && !row.original.deleted_at ? (
+                <Pencil size={15} />
+              ) : (
+                <Eye size={15} />
+              )}
             </Button>
             {writable && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="delete-button"
-                aria-label={`Xóa ${row.original.order_code}`}
+                aria-label={`${row.original.deleted_at ? "Kích hoạt lại" : "Ẩn"} ${row.original.order_code}`}
+                disabled={row.id in pendingVisibility}
                 onClick={() => setDeleting(row.original)}
               >
-                <Trash2 size={15} />
+                {row.original.deleted_at ? (
+                  <RotateCcw size={15} />
+                ) : (
+                  <EyeOff size={15} />
+                )}
               </Button>
             )}
           </div>
         ),
       },
     ],
-    [writable],
+    [writable, pendingVisibility],
   );
   const table = useTable({
     features,
@@ -190,25 +218,27 @@ export function OrdersView() {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }
   async function confirmDelete() {
-    if (!deleting) return;
+    if (!deleting || deleting.id in pendingVisibility) return;
+    const target = deleting;
+    const hidden = !target.deleted_at;
+    setDeleting(null);
+    setPendingVisibility((v) => ({ ...v, [target.id]: hidden }));
     try {
-      await api(`/api/orders/${deleting.id}`, { method: "DELETE" });
-      changed();
-      toast.success(
-        `Đã xóa mềm ${deleting.order_code}. Báo cáo đã được cập nhật.`,
-      );
-      setDeleting(null);
-      setPagination((p) => ({
-        ...p,
-        pageIndex: Math.max(
-          0,
-          Math.min(p.pageIndex, Math.ceil((total - 1) / p.pageSize) - 1),
-        ),
-      }));
+      await api("/api/orders/" + target.id + (hidden ? "" : "/restore"), {
+        method: hidden ? "DELETE" : "POST",
+      });
+      await changed("orders");
+      toast.success(hidden ? "Đã ẩn đơn hàng." : "Đã kích hoạt lại đơn hàng.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Không thể xóa đơn hàng.",
+        error instanceof Error ? error.message : "Không thể cập nhật đơn hàng.",
       );
+    } finally {
+      setPendingVisibility((v) => {
+        const next = { ...v };
+        delete next[target.id];
+        return next;
+      });
     }
   }
   return (
@@ -249,12 +279,35 @@ export function OrdersView() {
             />
           </label>
         </div>
+        <label className="field">
+          Hiển thị đơn hàng
+          <select
+            aria-label="Hiển thị đơn hàng"
+            value={visibility}
+            onChange={(e) => {
+              setVisibility(e.target.value);
+              setPagination((p) => ({ ...p, pageIndex: 0 }));
+            }}
+          >
+            <option value="all">Tất cả</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="hidden">Đã ẩn</option>
+          </select>
+        </label>
         <FilterBar value={filters} onChange={changeFilters} />
+        {resource.refreshing && (
+          <p role="status">
+            Đang cập nhật kết quả; dữ liệu trước vẫn hiển thị.
+          </p>
+        )}
+        {resource.error && resource.data && (
+          <p role="alert">{resource.error}</p>
+        )}
         {resource.loading ? (
           <div className="loading-state" role="status">
             Đang tải đơn hàng…
           </div>
-        ) : resource.error ? (
+        ) : resource.error && !resource.data ? (
           <div className="notice notice-error" role="alert">
             {resource.error}
           </div>
@@ -301,7 +354,15 @@ export function OrdersView() {
                 </thead>
                 <tbody>
                   {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id}>
+                    <tr
+                      key={row.id}
+                      className={
+                        row.original.deleted_at || pendingVisibility[row.id]
+                          ? "order-hidden"
+                          : ""
+                      }
+                      aria-busy={row.id in pendingVisibility}
+                    >
                       {row.getAllCells().map((cell) => (
                         <td key={cell.id}>
                           <table.FlexRender cell={cell} />
@@ -390,7 +451,8 @@ export function OrdersView() {
         )}
       </section>
       <p className="data-note">
-        Xóa mềm: đơn đã xóa được loại khỏi danh sách, KPI và CSV.
+        Đơn đã ẩn vẫn được giữ, có thể kích hoạt lại; không tính vào KPI, báo
+        cáo và xuất dữ liệu.
       </p>
       {editing && (
         <OrderEditor
@@ -407,10 +469,12 @@ export function OrdersView() {
         onOpenChange={(open) => {
           if (!open) setDeleting(null);
         }}
-        title="Xóa mềm đơn hàng?"
-        description={`${deleting?.order_code ?? ""} sẽ biến mất khỏi danh sách, tổng quan và báo cáo. Bản ghi vẫn được giữ trong cơ sở dữ liệu.`}
+        title={
+          deleting?.deleted_at ? "Kích hoạt lại đơn hàng?" : "Ẩn đơn hàng?"
+        }
+        description={`${deleting?.order_code ?? ""}: bản ghi và lịch sử được giữ nguyên. Đơn ẩn không tính vào tổng quan, báo cáo và xuất dữ liệu.`}
         onConfirm={confirmDelete}
-        confirmLabel="Xóa đơn hàng"
+        confirmLabel={deleting?.deleted_at ? "Kích hoạt lại" : "Ẩn đơn hàng"}
         destructive
       />
     </>
@@ -427,7 +491,7 @@ function OrderEditor({
   onOpenChange: (open: boolean) => void;
 }) {
   const { user, changed } = useWorkspace();
-  const writable = !!user && canWrite(user.role);
+  const writable = !!user && canWrite(user.role) && !order?.deleted_at;
   const [values, setValues] = useState({
     order_code:
       order?.order_code ??
@@ -485,7 +549,7 @@ function OrderEditor({
         method: order ? "PATCH" : "POST",
         body: JSON.stringify(parsed.data),
       });
-      changed();
+      changed("orders");
       toast.success(order ? "Đã cập nhật đơn hàng." : "Đã tạo đơn hàng.");
       onOpenChange(false);
     } catch (err) {
