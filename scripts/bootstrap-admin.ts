@@ -2,7 +2,9 @@ import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { backendTarget } from "../src/lib/environment";
-loadEnvConfig(process.cwd());
+import { loadStagingEnv } from "./staging-env";
+if (process.env.APP_ENV === "staging") loadStagingEnv();
+else loadEnvConfig(process.cwd());
 // Run only from a trusted terminal. Create the Auth account in the dashboard first.
 // No passwords, tokens or credential values are printed or accepted in command arguments.
 async function main() {

@@ -6,6 +6,7 @@ coverage/
 *.tsbuildinfo
 .env*
 !.env.example
+!.env.staging.example
 *.pem
 *.key
 *service-account*.json

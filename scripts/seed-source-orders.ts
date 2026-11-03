@@ -2,6 +2,7 @@ import { loadEnvConfig } from "@next/env";
 import { google } from "googleapis";
 import { pathToFileURL } from "node:url";
 import { generateOrders } from "../src/lib/seed";
+import { loadStagingEnv } from "./staging-env";
 import { assertStaging, stagingSheet } from "../src/lib/environment";
 import { inputHeaders, parseSheet } from "../src/lib/sheets-format";
 
@@ -46,7 +47,8 @@ async function main() {
     throw new SeedError(
       "Opt-in required: use --check (read only) or --confirm-development-source (development spreadsheet only).",
     );
-  loadEnvConfig(process.cwd());
+  if (write) loadStagingEnv();
+  else loadEnvConfig(process.cwd());
   if (write) {
     assertStaging(process.env);
     stagingSheet(
