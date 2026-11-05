@@ -14,6 +14,7 @@ Dành cho người nhận mới, không cần quyền vào hệ thống chủ c�
 10. [Kiểm thử toàn bộ website](10-verification.md)
 11. [Staging/Preview](11-staging.md)
 12. [Troubleshooting và vận hành](12-operations.md)
+13. [Phát triển lâu dài, migrations và release](13-development-workflow.md)
 
 [Bảng biến môi trường](ENVIRONMENT.md) · [Ảnh cần bổ sung](screenshots/README.md) · [Kết quả đã kiểm tra](../HANDOVER_VERIFICATION.md).
 

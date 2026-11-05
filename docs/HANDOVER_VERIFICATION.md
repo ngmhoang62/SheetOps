@@ -44,3 +44,7 @@ Không tái sử dụng credentials đang có chỉ để làm báo cáo PASS. N
 | Production dependencies audit                     | 0 vulnerabilities; full dependency graph 8 moderate ở tooling dev                                                  |
 
 Ảnh local được giữ tại docs/setup/screenshots/06-local-login*.png. Không dùng ảnh local để tuyên bố cloud Auth/SMTP/Sheets PASS. Docker và Chrome cần chạy ngoài Windows sandbox do quyền truy cập engine/crashpad; đây vẫn là container local network=none/browser loopback, không có kết nối dữ liệu Production. CI GitHub sẽ chạy lại các checks và database harness trên Ubuntu khi push nhánh handover; trạng thái run ghi nhận trong báo cáo bàn giao cuối.
+
+## Đợt hoàn thiện bàn giao cuối
+
+[Rà soát cuối](HANDOVER_FINAL_REVIEW.md) đối chiếu source commit GitHub, AGENTS trung lập, chương 13, Git/PowerShell và migration history. Các kết quả browser/audit dependencies phía trên là kết quả đợt kiểm tra trước, không được gắn nhãn kiểm tra cloud mới. Lần này chỉ thay tài liệu/policy; chạy lại checks code/build/migration từ snapshot Git sạch. Full SHA cuối, run CI và SHA-256 ZIP được ghi trong manifest/biên bản kèm bản giao để tránh tự tham chiếu SHA bên trong chính commit đó.

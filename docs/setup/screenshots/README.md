@@ -18,3 +18,5 @@ Các mục Dashboard dịch vụ dưới là **SCREENSHOT NEEDED**. Ảnh local 
 | 12-operations.png                              | Vị trí logs và sync history                                        |
 
 Có thể chia một mục thành nhiều ảnh khi không đọc được ở kích thước hợp lý. Caption phải nêu rõ môi trường. docs/screenshots cũ là bằng chứng UI lịch sử, không phải ảnh Dashboard của hệ thống mới.
+
+**SCREENSHOT NEEDED:** `13-development-workflow.png` — PR dev→main, CI đúng full SHA, migration history/dry run của tài khoản mới; che secrets và dữ liệu thật.

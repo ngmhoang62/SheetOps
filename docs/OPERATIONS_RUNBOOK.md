@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống trước bàn giao. Các tài khoản, backup/automation, trạng thái cloud và quyền release trong tài liệu này không được chuyển sang hệ thống mới. Dùng [setup](setup/README.md), [vận hành](setup/12-operations.md) và [quy trình phát triển](setup/13-development-workflow.md) cho người nhận.
+
 # Operator runbook
 
 ## Preview traffic challenges during QA

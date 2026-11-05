@@ -21,7 +21,7 @@ Phạm vi: toàn bộ file Git quản lý và file bổ sung của nhánh handov
 - .env.backup.example bổ sung template backup không secret; BUSINESS_TIMEZONE cũ không được runtime sử dụng được bỏ khỏi examples/required config; UTC+7 là quy tắc hiện có, không đổi bằng biến env.
 - .env.staging.example: xóa ref/Sheet/domain staging thật của chủ cũ, dùng placeholders rỗng. Không credentials trong examples.
 - Preview/performance/product scripts: xóa domain cá nhân; online origin khai báo rõ, khác origin Production, giữ request budgets, local-only mutation và opt-in.
-- Tests dùng định danh tổng hợp thay ID thật; mock email/domain không phải cấu hình tài khoản. Định danh thật vẫn còn trong AGENTS.md (quyền hạn bảo vệ hệ thống gốc) và hồ sơ lịch sử, không được source runtime/tooling dùng. Không xóa chứng cứ release hoặc thay đổi approval cũ.
+- Tests dùng định danh tổng hợp thay ID thật; mock email/domain không phải cấu hình tài khoản. AGENTS.md đã được chuẩn hóa trung lập tài khoản trong đợt rà soát cuối; định danh thật chỉ còn trong hồ sơ lịch sử/archive, không được source runtime/tooling dùng. Không xóa chứng cứ release hoặc thay đổi approval cũ.
 - next.config.ts dùng process.cwd() cho build root, tránh nhận nhầm lockfile/dependencies của thư mục cha khi cài mới trong thư mục con. Không thêm đường dẫn máy cá nhân.
 - tsconfig và Vitest giới hạn phạm vi source/test, tránh artifacts ignored và bản sao kiểm thử trong output tác động build/test.
 
@@ -37,6 +37,8 @@ Nhánh riêng codex/handover-clean-install từ dev; khi bắt đầu main và d
 
 ## Tài liệu và giới hạn
 
-README tiếng Việt dẫn đến docs/setup với 12 chương, bảng env public/secret/local/Vercel, placeholders screenshot, mẫu Source_Orders, quy trình First Admin/SMTP/cron/backup/staging, checklist UAT và tạo repository mới. Không dựng ảnh Dashboard. [Kết quả xác minh](HANDOVER_VERIFICATION.md) phân biệt local SQL/code với dịch vụ cloud thật.
+README tiếng Việt dẫn đến docs/setup với 13 chương, bảng env public/secret/local/Vercel, placeholders screenshot, mẫu Source_Orders, quy trình First Admin/SMTP/cron/backup/staging, checklist UAT và tạo repository mới. Không dựng ảnh Dashboard. [Kết quả xác minh](HANDOVER_VERIFICATION.md) phân biệt local SQL/code với dịch vụ cloud thật.
 
 Source export vẫn có lịch sử triển khai và ID công khai, không đồng nghĩa đã kiểm toán/xóa secrets khỏi toàn bộ Git history. Bàn giao độc lập nên dùng git archive của commit đã kiểm tra; không copy .git hoặc ignored files. Chưa có license chuyển giao quyền sở hữu trí tuệ riêng; người bàn giao/người nhận cần thống nhất quyền sử dụng và quyền chia sẻ trước khi công khai repository.
+
+Rà soát cuối của source GitHub, chính sách agent và vòng phát triển/migration dài hạn: [HANDOVER_FINAL_REVIEW](HANDOVER_FINAL_REVIEW.md).

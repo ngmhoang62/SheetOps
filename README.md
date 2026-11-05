@@ -2,7 +2,9 @@
 
 Website quản lý đơn hàng, báo cáo doanh thu và đồng bộ Google Sheets. Giao diện tiếng Việt; PostgreSQL là nguồn dữ liệu chính, Supabase Auth quản lý đăng nhập và quyền Admin/Editor/Viewer.
 
-**Bắt đầu bàn giao:** [Cài mới độc lập — 12 chương](docs/setup/README.md). Dùng tài khoản, repository, database, Spreadsheet và secrets của người nhận.
+**Không lấy main mặc định của repository gốc làm bản handover:** dùng ZIP/full SHA đã PASS CI trong biên bản bàn giao, theo [chương 2](docs/setup/02-github.md). Repository mới khởi tạo main/dev trực tiếp từ ZIP, không cần nhánh handover.
+
+**Bắt đầu bàn giao:** [Cài mới độc lập — 13 chương](docs/setup/README.md). Dùng tài khoản, repository, database, Spreadsheet và secrets của người nhận.
 
 1. Cài Node.js 24/Git; tạo repository riêng.
 2. Tạo Supabase trống, chạy đủ migrations; cấu hình Google Sheets/SMTP.
@@ -23,6 +25,6 @@ Không demo login/seed tự động. `npm run seed:preview` chỉ in dữ liệu
 
 Source: `src/app` (trang/API), `src/lib` (nghiệp vụ/validation), `src/lib/server` (dịch vụ tin cậy), `supabase/migrations` (schema/RLS/audit), `scripts`/`tests` (vận hành/kiểm thử).
 
-[Audit và phân loại file](docs/HANDOVER_AUDIT.md) · [Fresh installation verification](docs/HANDOVER_VERIFICATION.md) · [PRD](docs/PRD.md) · [Kiến trúc](docs/ARCHITECTURE.md) · [API](docs/API.md) · [Lịch sử](docs/archive/README.md).
+[Rà soát cuối](docs/HANDOVER_FINAL_REVIEW.md) · [Audit và phân loại file](docs/HANDOVER_AUDIT.md) · [Fresh installation verification](docs/HANDOVER_VERIFICATION.md) · [PRD](docs/PRD.md) · [Kiến trúc](docs/ARCHITECTURE.md) · [API](docs/API.md) · [Lịch sử](docs/archive/README.md).
 
-Nhánh handover không tự phát hành vào hệ thống hiện tại. Release Production chủ cũ vẫn cần phê duyệt riêng. Giữ lịch sử Phase 1, migrations, tests, security guards và backup tooling.
+Nhánh handover không tự phát hành vào hệ thống hiện tại. Release Production cần chủ sở hữu phê duyệt riêng. Giữ lịch sử Phase 1, migrations, tests, security guards và backup tooling.
