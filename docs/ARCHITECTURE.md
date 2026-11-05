@@ -1,40 +1,32 @@
-> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+# SheetOps architecture
 
-# Phase 2 architecture
+This is the account-neutral architecture of the handover source. Start with [setup](setup/README.md), the [environment contract](setup/ENVIRONMENT.md) and [development workflow](setup/13-development-workflow.md). Historical infrastructure/approval evidence is not configuration or release permission for a new installation. The prior architecture record is preserved in [archive](archive/ARCHITECTURE-before-final.md).
 
-The approved PRD remains `PRD.md`. `PHASE_1.md`, earlier verification records and Git history preserve the prototype. The current application uses PostgreSQL; synthetic fixtures and Phase 1 domain functions are retained for tests/seed preview only and are never loaded by the application provider.
+## Boundaries
 
-## Request boundaries
+- Next.js App Router serves pages and API route handlers. `src/proxy.ts` refreshes sessions and enforces page access; API handlers independently authenticate and authorize requests. Responses carrying session/business data are private/no-store.
+- `src/lib/environment.ts` validates explicit deployment identities. Production and staging refs/Sheets come from environment configuration, not source constants. The browser receives only public Supabase configuration. `src/lib/supabase/server.ts` and `src/lib/server/*` contain trusted operations and keep privileged credentials server-only.
+- PostgreSQL is the business source of truth. Active `profiles` determine Admin/Editor/Viewer access; user-editable metadata is never authorization. RLS, narrow grants, guarded RPCs, locks and transactional audit triggers enforce changes at the database boundary. First Admin bootstrap is a trusted terminal operation, not a public endpoint.
+- Feature components consume server APIs; `src/lib` owns validation, permissions, analytics and formatting contracts. A session-partitioned memory query cache is presentation support, never an authorization source or durable business store. Logout/revocation invalidates private state.
 
-- `src/proxy.ts`: Supabase SSR session refresh and actual page-route denial (401 redirect or HTTP 403 for inactive/admin-only access). API handlers perform their own checks, including cron's distinct bearer authentication. Responses are private/no-store.
-- `src/lib/supabase/{browser,server}.ts`: public cookie client, user-scoped server client, and explicitly privileged server client. Production is pinned to Singapore ubaxgkqkfcrqbyshkidz. Preview/staging requires an explicit independent ref and rejects the production/retired projects; see environment.ts. Missing Preview configuration fails closed before data access.
-- `src/lib/server/http.ts`: verified Auth user, fresh database profile, active flag, role requirements, origin checks, structured errors. User metadata never supplies role.
-- `src/app/api`: authenticated order CRUD, server pagination/search/sort, SQL summaries, filtered CSV, Admin users/settings/audit, Sheets sync, and authenticated cron.
-- `src/components/workspace-provider.tsx`: current session/profile and organization fetched from server; no browser business persistence or role switching. Focus and periodic refresh update visible permissions. Every request rechecks access regardless of cached UI.
-- Existing feature components preserve the Phase 1 readable layout while consuming APIs. Mutations invalidate shared query revisions. Session changes redirect through Next routing.
+## Domain and persistence
 
-## Exact money
+Orders use unique codes including hidden/deleted records, actual ISO dates, allowed statuses and nonnegative integer VND. PostgreSQL BIGINT values and exact aggregates cross JSON as decimal strings. Only completed, non-deleted orders contribute revenue. Chart geometry may be approximate; displayed financial values remain exact. Hide/restore preserves history and audit; visibility does not change revenue/export rules.
 
-`contracts.ts` validates unsigned decimal strings in PostgreSQL BIGINT range. The database stores BIGINT, aggregates with PostgreSQL numeric arithmetic, and emits text before JSON serialization. `orders_api.amount_sort` retains a numeric sort key; application selects explicitly omit that helper from responses. SQL reporting and CSV are exact. Recharts receives approximate numeric coordinates only for geometry; tooltips, KPI values and tables use the original exact strings.
+Every public business table uses RLS. Role/disable mutations preserve self-change and last-active-Admin safeguards. New tables, columns, grants, policies, functions, indexes and audit behavior belong in reviewed SQL migrations. Preserve applied files and reconcile remote migration history before CLI deployment. CI never applies cloud migrations.
 
-## Database authorization
+## Sheets and invitations
 
-RLS is enabled on all public tables. Active profiles determine access on every query. Anonymous users have no business grants. Authenticated roles cannot directly mutate profiles, runs or audit logs. User management and soft deletion use narrowly granted public invoker wrappers over private definer functions with explicit identity/role checks, empty search paths and appropriate locking. Order/profile/settings triggers record changes transactionally. No public Admin bootstrap endpoint exists.
+Admin import previews `Source_Orders`, validates rows and hashes content, then rereads at confirmation. The transactional import requires Orders empty, including hidden rows. Google Sheets is not a second database or a backup.
 
-## Sync flow
+Manual and authenticated cron exports share one server-only snapshot service. A persistent running-run guard/lease prevents normal overlap. RAW staging writes are verified by readback/hash before atomic managed-output replacement. Failure before publication preserves prior output; an uncertain publish requires reconciliation. There is no transaction spanning PostgreSQL and Google APIs or exactly-once guarantee. Source is never overwritten by runtime exports.
 
-Admin preview reads `Source_Orders`, checks headers and every row, and returns a content hash. Confirm rereads source and rejects changed/invalid input. The database import locks Orders, checks that even soft-deleted rows are absent, and transacts all inserts, audit and success state.
+Invitations cross Supabase Auth, PostgreSQL profiles and SMTP. Those systems are not one transaction. A provider-accepted invitation does not prove inbox delivery; incomplete provisioning requires Admin inspection. SMTP lives in Supabase settings, not browser environment variables.
 
-Admin/manual and bearer-protected cron exports share one server-only service. A database advisory transaction lock plus unique active-run index prevents overlap; stale running leases expire after ten minutes. A consistent SQL snapshot is sorted and written as RAW strings to staging, then read back and hashed. Within the 90-second publish budget the run lease is rechecked. An atomic Sheets structural batch resizes, clears only managed output values and copies verified staging values. A second readback precedes success. Failures do not mutate business orders.
+## Deployment and verification
 
-## Current execution limits
+`dev` maps to development/Preview and independent staging resources; `main` maps to Production. The new owner must separately approve schema writes, merge and Production deployment. Next build has no migration/seed hook. The checked-in region is a deploy preference, not an account identity. Business time is fixed UTC+7; cron schedule is UTC in `vercel.json`.
 
-Import: at most 5,000 source rows. CSV/export: at most 8,000 orders; oversized snapshots fail explicitly and require a worker. Individual Google calls time out after ten seconds; transient staging calls use at most three attempts. Function maximum duration is 120 seconds. The advisory lease is longer than normal function lifetime; this does not provide a cross-system transaction or exactly-once external side effect. Manual retries use a new key; cron uses a business-date key. A failed daily key is retained and requires manual retry rather than replaying the same cron key.
+Import is bounded at 5,000 rows; export/CSV at 8,000 rows. Oversized work needs reviewed worker architecture. Timeouts, retry bounds and lease checks are implementation safeguards, not an external job queue or SLA.
 
-References used: [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Next.js proxy](https://nextjs.org/docs/app/api-reference/file-conventions/proxy), [Sheets batch updates](https://developers.google.com/workspace/sheets/api/guides/batchupdate).
-
-Phase 3: main → production; dev → isolated Preview, owner-approved PR release only. Preview Sheets IDs are checked independently. Baseline security headers are applied by Next config. The owner-approved release 0506323 uses a single sin1 function region alongside Singapore PostgreSQL in both Preview and production. No queues/Redis/workers were introduced. See RELEASE_PROCESS.md and BACKUP_RESTORE.md.
-
-Later dev performance work: one memory-only QueryClient per environment/user/role/login epoch provides deduplication, 30-second freshness, previous-data retention and domain invalidation. Fresh authorization remains in APIs/RLS; logout/revocation/role changes clear private state. Verified password login can supply the default analytics snapshot concurrently with profile/settings, avoiding the initial Dashboard request. Admin reads overlap profile and RLS data queries without returning anything before authorization. No public data cache or durable client job queue exists.
-
-Sheets stage resize/clear/string-cell replacement now occurs in one atomic structural batch; publication still follows independent read-back/hash and lease validation. Hidden orders are visible through server-paginated list visibility filters but remain excluded from analytics, CSV and Sheets snapshots. See PERFORMANCE_ENGINEERING.md and HIDE_RESTORE.md; the latter migration is staging-only until separately approved for production.
+CI runs formatting, lint, strict typecheck, unit tests, build and a disposable PostgreSQL migration harness. Minimal SQL Auth fixtures validate schema/RLS/bootstrap/audit contracts, not hosted Auth/PostgREST/SMTP/Sheets/Vercel. Cloud ownership, configuration and end-to-end behavior require [recipient verification](setup/10-verification.md). Full Supabase/Auth disaster recovery remains a separate restore exercise.
