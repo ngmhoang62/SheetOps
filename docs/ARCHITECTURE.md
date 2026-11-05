@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+
 # Phase 2 architecture
 
 The approved PRD remains `PRD.md`. `PHASE_1.md`, earlier verification records and Git history preserve the prototype. The current application uses PostgreSQL; synthetic fixtures and Phase 1 domain functions are retained for tests/seed preview only and are never loaded by the application provider.

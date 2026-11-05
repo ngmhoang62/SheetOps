@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+
 # Performance results and release decision — 2026-11-03
 
 Latest follow-up: [2026-11-04 verification](PERFORMANCE_FOLLOWUP.md) confirms the historical DDoS Mitigation cause, fresh local regression and a successful bounded online Preview smoke. The distributions and earlier BLOCKED checkpoint below remain historical; full online mutation/mobile regression is not part of the new read-only smoke.

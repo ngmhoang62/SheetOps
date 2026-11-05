@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+
 # Phase 2 implementation plan
 
 Authorized by the user's Phase 2 request on 2026-11-02. Preserve PRD v1.0 and historical Phase 1 results. Only target the existing Singapore Supabase project `ubaxgkqkfcrqbyshkidz` and existing Vercel `sheetops` project.

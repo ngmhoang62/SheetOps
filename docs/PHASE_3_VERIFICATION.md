@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+
 # Phase 3 evidence — 2026-11-03
 
 Status: **IMPLEMENTED — ENVIRONMENT VERIFICATION PENDING**. Independent staging, owner online login/Sheets QA, integration tests, synthetic PostgreSQL restore, actual scheduled production cron and the first encrypted offsite production backup are verified. Full Supabase/Auth disaster recovery and branch-protection confirmation remain open. The owner explicitly authorized the current PR release; PR #1 was merged with owner approval; production deployment is verified below.

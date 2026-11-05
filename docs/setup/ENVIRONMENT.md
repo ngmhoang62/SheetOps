@@ -1,0 +1,33 @@
+# Bảng biến môi trường
+
+Local: file riêng tư `.env.local`; staging: `.env.staging.local`. Vercel: **Project → Settings → Environment Variables**, chọn đúng scope rồi redeploy. NEXT_PUBLIC_* được nhúng lúc build, mọi người có thể đọc; không chứa secrets. Không cần credentials để CI build, nhưng runtime cloud phải cấu hình đầy đủ. SMTP lưu ở Supabase Dashboard, không ở Vercel.
+
+| Biến                                                 | Public/secret        | Nguồn / giá trị                                                                  | Local / Vercel                                                    |
+| ---------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| APP_ENV                                              | Không bí mật, server | production hoặc staging, bắt buộc                                                | Cả hai; Production=production, Preview=staging                    |
+| NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF          | Public               | Settings → General, ref Production MỚI                                           | Cả hai, cả scope staging để đối chiếu                             |
+| NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF             | Public               | Ref Supabase staging riêng                                                       | Chỉ staging/Preview; Production để trống                          |
+| NEXT_PUBLIC_SUPABASE_URL                             | Public               | Connect → Project URL                                                            | Cả hai, URL tương ứng scope                                       |
+| NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY                 | Public               | API Keys → publishable key                                                       | Cả hai, cùng project với URL                                      |
+| SUPABASE_SECRET_KEY                                  | **Secret**           | API Keys → secret key                                                            | Cả hai, server-only, riêng mỗi scope                              |
+| GOOGLE_SERVICE_ACCOUNT_EMAIL                         | Server, định danh    | JSON client_email                                                                | Cả hai, account tương ứng môi trường                              |
+| GOOGLE_PRIVATE_KEY                                   | **Secret**           | JSON private_key, giữ newline                                                    | Cả hai; Vercel paste key/newline, không paste JSON/nháy bao ngoài |
+| GOOGLE_SPREADSHEET_ID                                | Server, định danh    | URL Sheets /d/ID/edit                                                            | Cả hai, Sheet tương ứng scope                                     |
+| PRODUCTION_GOOGLE_SPREADSHEET_ID                     | Server, định danh    | ID Sheet Production mới                                                          | Cả hai; Production bằng active Sheet, staging phải khác           |
+| STAGING_GOOGLE_SPREADSHEET_ID                        | Server, định danh    | ID Sheet staging riêng                                                           | Staging/Preview bằng active Sheet; Production để trống            |
+| CRON_SECRET                                          | **Secret**           | Random >=32 bytes; riêng mỗi môi trường                                          | Cả hai; scheduler chỉ Production                                  |
+| APP_ORIGIN                                           | Server, không bí mật | Origin website; local http://localhost:3000 hoặc staging port 3001; deploy HTTPS | Cả hai, đúng scope và Auth allowlist                              |
+| BOOTSTRAP_ADMIN_ID                                   | Dữ liệu nội bộ       | Auth Users → UID có sẵn                                                          | Chỉ terminal/local; xóa sau bootstrap                             |
+| BOOTSTRAP_ADMIN_NAME                                 | Dữ liệu nội bộ       | Tên chủ sở hữu                                                                   | Chỉ terminal/local                                                |
+| PREVIEW_ORIGIN                                       | Không bí mật         | Origin HTTPS Preview, không / cuối                                               | Chỉ file staging/tooling online                                   |
+| PRODUCTION_APP_ORIGIN                                | Không bí mật         | Origin HTTPS Production mới để đối chiếu Preview                                 | Chỉ file staging/tooling online                                   |
+| VERCEL_OIDC_TOKEN                                    | **Secret tạm**       | Phiên CLI được cấp nếu deployment protected                                      | Chỉ process thử nghiệm được ủy quyền                              |
+| DATABASE_URL                                         | **Secret**           | Supabase Connect → direct/session 5432                                           | Chỉ .env.backup.local, không cần Vercel                           |
+| NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF (backup) | Public               | Ref khớp DATABASE_URL                                                            | Cũng đặt trong .env.backup.local                                  |
+| VERCEL_ENV                                           | Nhà cung cấp         | Vercel tự đặt production/preview/development                                     | Không tự cấu hình để vượt guards                                  |
+
+Các cờ chỉ dành cho tooling, không đưa lên Production: RUN_CLOUD_TESTS, RUN_PRODUCT_TESTS, RUN_AUDIT_TESTS, RUN_PREVIEW_SMOKE, RUN_PERFORMANCE_TESTS, RUN_RESTORE_DRILL, RUN_INSTALL_DB_TEST, RUN_DATABASE_BACKUP (giá trị 1 mới cho phép); E2E_BASE_URL/PRODUCT_BASE_URL/PERF_BASE_URL là target có allowlist. PERF_* và SMOKE_* là tùy chọn kiểm thử được mô tả trong script và hồ sơ performance, không cần cho cài mới. PERF_DIAGNOSTICS=1 chỉ bật diagnostics phát triển; không bật khi chưa cần.
+
+Trước khi chạy suite staging, đối chiếu độc lập ref/Sheet/keys với Production thực; khai báo sai các giá trị đối chiếu có thể làm guards mất tác dụng. Guards không xác minh quyền sở hữu cloud. Không chia sẻ hai file env hoặc upload JSON key lên GitHub.
+
+Múi giờ nghiệp vụ cố định Asia/Ho_Chi_Minh (UTC+7) trong UI/domain/cron. Biến BUSINESS_TIMEZONE cũ chưa từng được runtime sử dụng, đã bỏ khỏi examples/required staging config để tránh hiểu nhầm. Đổi múi giờ cần thay đổi đồng bộ nghiệp vụ và cron có review.

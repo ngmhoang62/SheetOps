@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+
 # Order visibility and release contract
 
 Implemented on dev; production schema is unchanged. The authoritative field remains orders.deleted_at. No order is physically deleted by the application.

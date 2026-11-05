@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+
 # UI annotations and paginated audit verification
 
 Date: 2026-11-04. Development branch only. Local staging production build: `http://127.0.0.1:3001`; staging Supabase `msrmoffrfjhqijdfzzwm`. No production migration, release, business mutation, firewall or Deployment Protection changes.

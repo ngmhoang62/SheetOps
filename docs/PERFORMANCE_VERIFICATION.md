@@ -1,3 +1,5 @@
+> Hồ sơ lịch sử của hệ thống gốc, giữ để tra cứu; các ID/domain và trạng thái release tại thời điểm ghi không phải cấu hình cài mới. Người nhận bắt đầu tại [docs/setup](setup/README.md).
+
 # Local staging performance review — 2026-11-03
 
 Historical first optimization pass. Current cache/visibility work and final measured acceptance are in PERFORMANCE_BASELINE.md, PERFORMANCE_ENGINEERING.md and PERFORMANCE_RESULTS.md. The earlier no-cache statements and empty-fixture counts below describe that earlier checkpoint, not the current retained staging environment.
