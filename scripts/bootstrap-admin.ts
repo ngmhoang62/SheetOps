@@ -1,7 +1,7 @@
 import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { backendTarget } from "../src/lib/environment";
+import { backendTarget, deploymentStaging } from "../src/lib/environment";
 import { loadStagingEnv } from "./staging-env";
 if (process.env.APP_ENV === "staging") loadStagingEnv();
 else loadEnvConfig(process.cwd());
@@ -18,7 +18,7 @@ async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   backendTarget(
     url,
-    process.env.APP_ENV === "staging",
+    deploymentStaging(process.env),
     process.env.NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF,
   );
   if (!url) throw new Error("Missing target");

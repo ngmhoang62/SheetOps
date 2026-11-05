@@ -11,6 +11,8 @@ export function loadStagingEnv() {
   validateDistinctSecrets(parsed, production);
   for (const key of [
     "APP_ENV",
+    "NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF",
+    "PRODUCTION_GOOGLE_SPREADSHEET_ID",
     "NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF",
     "NEXT_PUBLIC_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -20,12 +22,17 @@ export function loadStagingEnv() {
     "GOOGLE_SPREADSHEET_ID",
     "STAGING_GOOGLE_SPREADSHEET_ID",
     "CRON_SECRET",
-    "BUSINESS_TIMEZONE",
     "APP_ORIGIN",
   ]) {
     if (!parsed[key]) throw new Error(`Staging file missing ${key}`);
     process.env[key] = parsed[key];
   }
+  for (const key of ["PREVIEW_ORIGIN", "PRODUCTION_APP_ORIGIN"]) {
+    delete process.env[key];
+    if (parsed[key]) process.env[key] = parsed[key];
+  }
+  for (const key of ["BOOTSTRAP_ADMIN_ID", "BOOTSTRAP_ADMIN_NAME"])
+    if (parsed[key]) process.env[key] = parsed[key];
   assertStaging(process.env);
   stagingSheet(
     process.env.GOOGLE_SPREADSHEET_ID,
@@ -37,7 +44,27 @@ export function validateDistinctSecrets(
   staging: Record<string, string | undefined>,
   production: Record<string, string | undefined>,
 ) {
+  if (
+    production.NEXT_PUBLIC_SUPABASE_URL &&
+    staging.NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF &&
+    new URL(production.NEXT_PUBLIC_SUPABASE_URL).hostname !==
+      `${staging.NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF}.supabase.co`
+  )
+    throw new Error(
+      "Production reference declaration does not match local production configuration",
+    );
+  if (
+    production.GOOGLE_SPREADSHEET_ID &&
+    staging.PRODUCTION_GOOGLE_SPREADSHEET_ID &&
+    production.GOOGLE_SPREADSHEET_ID !==
+      staging.PRODUCTION_GOOGLE_SPREADSHEET_ID
+  )
+    throw new Error(
+      "Production spreadsheet declaration does not match local production configuration",
+    );
   for (const key of [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "GOOGLE_SPREADSHEET_ID",
     "SUPABASE_SECRET_KEY",
     "GOOGLE_PRIVATE_KEY",
     "CRON_SECRET",

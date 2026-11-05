@@ -1,9 +1,9 @@
 name: Application checks
 on:
   push:
-    branches: [dev, main]
+    branches: [dev, main, "codex/handover-**"]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -25,3 +25,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run test:install-db
+        env:
+          RUN_INSTALL_DB_TEST: "1"

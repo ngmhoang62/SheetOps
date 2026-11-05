@@ -8,10 +8,14 @@ import {
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseEnv } from "node:util";
-import { productionRef } from "../src/lib/environment";
+import { projectRef } from "../src/lib/environment";
 let backupStage = "configuration";
 
-export function backupConnection(value: string | undefined) {
+export function backupConnection(
+  value: string | undefined,
+  expectedRef?: string,
+) {
+  const productionRef = projectRef(expectedRef);
   const url = new URL(value ?? "");
   const user = decodeURIComponent(url.username);
   const direct =
@@ -54,7 +58,10 @@ async function main() {
   if (process.env.RUN_DATABASE_BACKUP !== "1")
     throw new Error("Explicit backup opt-in required");
   const config = parseEnv(readFileSync(".env.backup.local", "utf8"));
-  const connection = backupConnection(config.DATABASE_URL);
+  const productionRef = projectRef(
+    config.NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF,
+  );
+  const connection = backupConnection(config.DATABASE_URL, productionRef);
   const image = "postgres:17-alpine";
   const env = { ...process.env, ...connection };
   const docker = (command: string[], input?: Buffer) => {

@@ -13,9 +13,14 @@ describe("revoked account navigation", () => {
   beforeEach(() => {
     vi.stubEnv(
       "NEXT_PUBLIC_SUPABASE_URL",
-      "https://ubaxgkqkfcrqbyshkidz.supabase.co",
+      "https://abcdefghijklmnopqrst.supabase.co",
     );
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-only");
+    vi.stubEnv(
+      "NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF",
+      "abcdefghijklmnopqrst",
+    );
+    vi.stubEnv("APP_ENV", "production");
     signOut.mockClear();
     getClaims.mockClear();
     single.mockClear();
@@ -37,7 +42,7 @@ describe("revoked account navigation", () => {
       new NextRequest("https://sheetops.vercel.app/orders", {
         headers: {
           cookie:
-            "sb-ubaxgkqkfcrqbyshkidz-auth-token.0=test; sb-ubaxgkqkfcrqbyshkidz-auth-token.1=test; preference=keep",
+            "sb-abcdefghijklmnopqrst-auth-token.0=test; sb-abcdefghijklmnopqrst-auth-token.1=test; preference=keep",
         },
       }),
     );
@@ -48,10 +53,10 @@ describe("revoked account navigation", () => {
     expect(result.headers.get("cache-control")).toBe("private, no-store");
     expect(signOut).toHaveBeenCalledWith({ scope: "local" });
     expect(
-      result.cookies.get("sb-ubaxgkqkfcrqbyshkidz-auth-token.0")?.maxAge,
+      result.cookies.get("sb-abcdefghijklmnopqrst-auth-token.0")?.maxAge,
     ).toBe(0);
     expect(
-      result.cookies.get("sb-ubaxgkqkfcrqbyshkidz-auth-token.1")?.maxAge,
+      result.cookies.get("sb-abcdefghijklmnopqrst-auth-token.1")?.maxAge,
     ).toBe(0);
     expect(result.cookies.has("preference")).toBe(false);
   });

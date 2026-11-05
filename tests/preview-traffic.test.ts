@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import type { BrowserContext, Route } from "@playwright/test";
 import {
   benchmarkPlan,
@@ -6,8 +6,13 @@ import {
   previewOrigin,
 } from "../scripts/preview-traffic";
 
+beforeEach(() => {
+  vi.stubEnv("PREVIEW_ORIGIN", "https://preview.example.test");
+  vi.stubEnv("PRODUCTION_APP_ORIGIN", "https://production.example.test");
+});
+
 it("keeps Preview benchmark small and refuses large loops before fixture creation", () => {
-  expect(benchmarkPlan(previewOrigin, {})).toEqual({
+  expect(benchmarkPlan(previewOrigin(), {})).toEqual({
     cycles: 1,
     logins: 1,
     apiSamples: 0,
@@ -20,7 +25,7 @@ it("keeps Preview benchmark small and refuses large loops before fixture creatio
     { PERF_ORDER_COUNT: "2000" },
     { PERF_RESPONSIVE: "1" },
   ])
-    expect(() => benchmarkPlan(previewOrigin, env)).toThrow();
+    expect(() => benchmarkPlan(previewOrigin(), env)).toThrow();
   expect(
     benchmarkPlan("http://127.0.0.1:3001", {
       PERF_ORDER_COUNT: "2000",
@@ -97,7 +102,7 @@ it("skips unrelated speculative prefetch without contacting Preview, but allows 
       abort,
       continue: send,
       request: () => ({
-        url: () => previewOrigin + path,
+        url: () => previewOrigin() + path,
         headers: () => ({ "next-router-prefetch": "1" }),
         response: async () => ({
           headers: () => ({}),
@@ -161,7 +166,7 @@ it("releases a streamed route at headers so its dependent API can complete", asy
       continue: async () => {},
       abort: async () => {},
       request: () => ({
-        url: () => previewOrigin + path,
+        url: () => previewOrigin() + path,
         headers: () => ({}),
         response: async () => ({
           headers: () => ({}),

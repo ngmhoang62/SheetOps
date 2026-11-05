@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { backendTarget } from "./lib/environment";
+import { backendTarget, deploymentStaging } from "./lib/environment";
 import { upstreamFetch } from "./lib/supabase/transport";
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -11,9 +11,7 @@ export async function proxy(request: NextRequest) {
   try {
     backendTarget(
       url,
-      process.env.VERCEL_ENV !== "production" &&
-        (process.env.VERCEL_ENV === "preview" ||
-          process.env.APP_ENV === "staging"),
+      deploymentStaging(process.env),
       process.env.NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF,
     );
   } catch {

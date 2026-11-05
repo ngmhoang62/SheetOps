@@ -23,10 +23,7 @@ if (base !== "http://127.0.0.1:3001")
     "Full mutation regression is local-only; use test:preview:smoke for bounded Preview checks",
   );
 if (
-  ![
-    "http://127.0.0.1:3001",
-    "https://sheetops-git-dev-nguyen-minh-hoang-s-team.vercel.app",
-  ].includes(base) ||
+  !["http://127.0.0.1:3001"].includes(base) ||
   process.env.RUN_PRODUCT_TESTS !== "1"
 )
   throw Error("Explicit staging product test required");

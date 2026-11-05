@@ -25,7 +25,8 @@
     "perf:benchmark": "tsx scripts/benchmark-performance.ts",
     "test:product": "tsx scripts/verify-product.ts",
     "test:preview:smoke": "tsx scripts/verify-preview-smoke.ts",
-    "test:audit-ui": "tsx scripts/verify-audit-ui.ts"
+    "test:audit-ui": "tsx scripts/verify-audit-ui.ts",
+    "test:install-db": "tsx scripts/verify-install-db.ts"
   },
   "engines": {
     "node": ">=22.12.0",

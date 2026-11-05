@@ -1,60 +1,69 @@
 import { describe, expect, it } from "vitest";
 import {
   backendTarget,
-  productionRef,
-  productionSheet,
   stagingSheet,
   assertStaging,
+  deploymentStaging,
 } from "../src/lib/environment";
-describe("deployment isolation", () => {
-  const ref = "abcdefghijklmnopqrst";
-  it("pins production and rejects an unconfigured preview", () => {
+const prod = "abcdefghijklmnopqrst";
+const stage = "tsrqponmlkjihgfedcba";
+describe("portable deployment isolation", () => {
+  it("accepts owner identities and fails closed without declarations", () => {
     expect(
-      backendTarget(`https://${productionRef}.supabase.co`, false),
-    ).toContain(productionRef);
+      backendTarget(`https://${prod}.supabase.co`, false, undefined, prod),
+    ).toContain(prod);
+    expect(
+      backendTarget(`https://${stage}.supabase.co`, true, stage, prod),
+    ).toContain(stage);
     expect(() =>
-      backendTarget(`https://${productionRef}.supabase.co`, true),
+      backendTarget(`https://${stage}.supabase.co`, true, stage, ""),
     ).toThrow();
     expect(() =>
-      backendTarget(
-        `https://${productionRef}.supabase.co`,
-        true,
-        productionRef,
-      ),
+      backendTarget(`https://${prod}.supabase.co`, true, prod, prod),
     ).toThrow();
-  });
-  it("only accepts an explicit independent HTTPS staging ref", () => {
-    expect(backendTarget(`https://${ref}.supabase.co`, true, ref)).toContain(
-      ref,
-    );
-    for (const url of [
-      `http://${ref}.supabase.co`,
-      `https://${ref}.supabase.co.evil.test`,
-      `https://${ref}.supabase.co/path`,
-      `https://user:pass@${ref}.supabase.co`,
-    ])
-      expect(() => backendTarget(url, true, ref)).toThrow();
     expect(() =>
-      backendTarget(
-        "https://mkobuvmadimunvfgzzuy.supabase.co",
-        true,
-        "mkobuvmadimunvfgzzuy",
-      ),
+      backendTarget(`https://${stage}.supabase.co`, false, stage, prod),
     ).toThrow();
-  });
-  it("prevents production cleanup tests even with opt-in", () => {
+    expect(() => assertStaging({})).toThrow();
     expect(() =>
       assertStaging({
         APP_ENV: "staging",
-        NEXT_PUBLIC_SUPABASE_URL: `https://${productionRef}.supabase.co`,
-        NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF: productionRef,
+        NEXT_PUBLIC_SUPABASE_URL: `https://${prod}.supabase.co`,
+        NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF: prod,
+        NEXT_PUBLIC_PRODUCTION_SUPABASE_PROJECT_REF: prod,
       }),
     ).toThrow();
-    expect(() => assertStaging({})).toThrow();
   });
-  it("refuses production or mismatching spreadsheet IDs", () => {
-    expect(() => stagingSheet(productionSheet, productionSheet)).toThrow();
-    expect(() => stagingSheet("different", "stage")).toThrow();
-    expect(() => stagingSheet("stage", "stage")).not.toThrow();
+  it("rejects malformed URLs", () => {
+    for (const url of [
+      `http://${stage}.supabase.co`,
+      `https://${stage}.supabase.co.evil.test`,
+      `https://${stage}.supabase.co/path`,
+      `https://user:pass@${stage}.supabase.co`,
+      `https://${stage}.supabase.co/?x=1`,
+    ])
+      expect(() => backendTarget(url, true, stage, prod)).toThrow();
+  });
+  it("rejects missing, reused and mismatched sheet declarations", () => {
+    expect(() => stagingSheet("stage", "stage", "prod")).not.toThrow();
+    for (const args of [
+      ["prod", "prod", "prod"],
+      ["other", "stage", "prod"],
+      ["stage", "stage", ""],
+    ])
+      expect(() =>
+        stagingSheet(...(args as [string, string, string])),
+      ).toThrow();
+  });
+  it("requires consistent deployment mode", () => {
+    expect(
+      deploymentStaging({ APP_ENV: "staging", VERCEL_ENV: "preview" }),
+    ).toBe(true);
+    for (const env of [
+      {},
+      { APP_ENV: "production", VERCEL_ENV: "preview" },
+      { APP_ENV: "staging", VERCEL_ENV: "production" },
+    ])
+      expect(() => deploymentStaging(env)).toThrow();
   });
 });

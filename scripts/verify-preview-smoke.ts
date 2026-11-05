@@ -26,7 +26,7 @@ if (process.env.SMOKE_SCOPE && !annotations)
 if (!["preview", "local"].includes(target))
   throw Error("Unsupported smoke target");
 const targetOrigin =
-  target === "local" ? "http://127.0.0.1:3001" : onlineOrigin;
+  target === "local" ? "http://127.0.0.1:3001" : onlineOrigin();
 const reportName =
   (target === "local" ? "local-paced-smoke" : "preview-smoke") +
   (annotations ? "-annotations" : "");

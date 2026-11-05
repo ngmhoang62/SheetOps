@@ -17,12 +17,15 @@ assertStaging(process.env);
 const base = process.env.PERF_BASE_URL || "http://127.0.0.1:3001";
 const allowed = [
   "http://127.0.0.1:3001",
-  "https://sheetops-git-dev-nguyen-minh-hoang-s-team.vercel.app",
+  ...(process.env.PREVIEW_ORIGIN ? [previewOrigin()] : []),
 ];
 if (!allowed.includes(base) || process.env.RUN_PERFORMANCE_TESTS !== "1")
   throw Error("Explicit isolated benchmark required");
 const plan = benchmarkPlan(base, process.env);
-const traffic = base === previewOrigin ? new PreviewTraffic() : null;
+const traffic =
+  base !== "http://127.0.0.1:3001" && base === previewOrigin()
+    ? new PreviewTraffic()
+    : null;
 const expect = baseExpect.configure({ timeout: traffic ? 90000 : 30000 });
 let unlock: (() => void) | undefined;
 const service = createClient(

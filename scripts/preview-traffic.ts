@@ -7,8 +7,24 @@ import {
   writeFileSync,
 } from "node:fs";
 
-export const previewOrigin =
-  "https://sheetops-git-dev-nguyen-minh-hoang-s-team.vercel.app";
+export function previewOrigin() {
+  const value = process.env.PREVIEW_ORIGIN;
+  if (!value) throw new Error("Explicit PREVIEW_ORIGIN required");
+  const parsed = new URL(value);
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.origin !== value ||
+    parsed.username ||
+    parsed.password
+  )
+    throw new Error("PREVIEW_ORIGIN must be an HTTPS origin");
+  if (
+    !process.env.PRODUCTION_APP_ORIGIN ||
+    value === process.env.PRODUCTION_APP_ORIGIN
+  )
+    throw new Error("Independent Preview origin required");
+  return value;
+}
 
 export function lockPreview() {
   mkdirSync("output/performance", { recursive: true });
@@ -137,9 +153,9 @@ export class PreviewTraffic {
   async attach(
     context: BrowserContext,
     token?: string,
-    origin = previewOrigin,
+    origin = previewOrigin(),
   ) {
-    if (![previewOrigin, "http://127.0.0.1:3001"].includes(origin))
+    if (origin !== "http://127.0.0.1:3001" && origin !== previewOrigin())
       throw Error("Unsupported smoke origin");
     this.contexts.add(context);
     context.on("close", () => this.contexts.delete(context));
@@ -164,7 +180,9 @@ export class PreviewTraffic {
           await route.continue({
             headers: {
               ...request.headers(),
-              ...(token && origin === previewOrigin
+              ...(token &&
+              origin !== "http://127.0.0.1:3001" &&
+              origin === previewOrigin()
                 ? { "x-vercel-trusted-oidc-idp-token": token }
                 : {}),
             },
@@ -199,7 +217,7 @@ export function benchmarkPlan(
   base: string,
   env: Record<string, string | undefined>,
 ) {
-  const online = base === previewOrigin;
+  const online = base !== "http://127.0.0.1:3001" && base === previewOrigin();
   const integer = (name: string, fallback: number, max: number) => {
     const value = Number(env[name] ?? fallback);
     if (

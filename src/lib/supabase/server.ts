@@ -2,7 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { backendTarget } from "../environment";
+import { backendTarget, deploymentStaging } from "../environment";
 import { upstreamFetch } from "./transport";
 
 export function publicConfig() {
@@ -10,9 +10,7 @@ export function publicConfig() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   backendTarget(
     url,
-    process.env.VERCEL_ENV !== "production" &&
-      (process.env.VERCEL_ENV === "preview" ||
-        process.env.APP_ENV === "staging"),
+    deploymentStaging(process.env),
     process.env.NEXT_PUBLIC_STAGING_SUPABASE_PROJECT_REF,
   );
   if (!url || !key)

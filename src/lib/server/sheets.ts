@@ -12,7 +12,7 @@ import {
 import type { LiveOrder } from "@/lib/contracts";
 import { privilegedClient } from "@/lib/supabase/server";
 import { HttpError } from "./http";
-import { stagingSheet } from "../environment";
+import { stagingSheet, deploymentStaging } from "../environment";
 
 function client() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -20,8 +20,13 @@ function client() {
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
   if (!email || !key || !spreadsheetId)
     throw new HttpError(503, "Chưa cấu hình Google Sheets.");
-  if (process.env.VERCEL_ENV === "preview" || process.env.APP_ENV === "staging")
+  if (deploymentStaging(process.env))
     stagingSheet(spreadsheetId, process.env.STAGING_GOOGLE_SPREADSHEET_ID);
+  else if (
+    !process.env.PRODUCTION_GOOGLE_SPREADSHEET_ID ||
+    spreadsheetId !== process.env.PRODUCTION_GOOGLE_SPREADSHEET_ID
+  )
+    throw new HttpError(503, "Cấu hình Spreadsheet không khớp môi trường.");
   const auth = new google.auth.JWT({
     email,
     key,
