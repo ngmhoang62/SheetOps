@@ -18,4 +18,6 @@ git push -u origin dev
 
 4. Repository mới → **Settings → Collaborators**: chỉ mời người tin cậy. **Actions**: bật workflow nếu cần; lần push đầu phải có Application checks. Branch rules main: yêu cầu PR và CI nếu gói tài khoản cho phép.
 
+Trong bản sao độc lập, cập nhật AGENTS.md theo tài nguyên và chính sách phê duyệt của chủ mới trước khi nhờ agent phát triển tiếp. ID và approval trong AGENTS.md hiện bảo vệ hệ thống gốc; không phải quyền truy cập, cấu hình hay chấp thuận release cho hệ thống mới. Không sửa quy định này trong repository gốc để triển khai cho người nhận.
+
 **Xác minh:** URL/Owner thuộc người nhận; file không có secrets; Actions không dùng secrets cũ. **SCREENSHOT NEEDED:** `screenshots/02-repository.png`, URL repo mới và tab Actions.
