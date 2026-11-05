@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 
+let stage = "configuration";
 // No environment files, cloud clients, published ports or host mounts.
 // Auth fixtures model only the SQL contracts used by the committed migrations.
 async function main() {
@@ -16,8 +17,13 @@ async function main() {
     }).trim();
   let container: string | undefined;
   try {
+    stage = "image_pull";
+    // Cold-image progress must not be mistaken for the detached container ID.
+    docker(["pull", "postgres:17-alpine"]);
+    stage = "container_start";
     container = docker([
       "run",
+      "--pull=never",
       "--rm",
       "-d",
       "--network",
@@ -28,6 +34,7 @@ async function main() {
     ]);
     if (!/^[a-f0-9]{64}$/.test(container))
       throw new Error("Invalid container ID");
+    stage = "database_ready";
     for (let i = 0; ; i++) {
       try {
         docker(["exec", container, "pg_isready", "-U", "postgres"]);
@@ -54,6 +61,7 @@ async function main() {
         ],
         query,
       );
+    stage = "auth_fixture";
     sql(`create role anon nologin;
       create role authenticated nologin;
       create role service_role nologin bypassrls;
@@ -68,6 +76,7 @@ async function main() {
       .filter((p) => p.endsWith(".sql"))
       .sort();
     for (const file of files) {
+      stage = file;
       // Atomic per migration; fail on the first SQL error.
       sql(
         "begin;\n" +
@@ -76,6 +85,7 @@ async function main() {
       );
       console.log("Migration PASS: " + file);
     }
+    stage = "schema_assertions";
     const assert = (query: string, expected: string) => {
       if (sql(query) !== expected) throw new Error("Database assertion failed");
     };
@@ -132,9 +142,19 @@ async function main() {
       docker(["stop", container]);
   }
 }
-main().catch(() => {
+main().catch((error: unknown) => {
   console.error(
     "Isolated installation DB test failed. Check Docker Server and migration SQL. No cloud resources accessed.",
+  );
+  // Every command uses only local synthetic SQL and no secrets or cloud config.
+  console.error(
+    JSON.stringify({
+      stage,
+      detail: String(
+        (error as { stderr?: string })?.stderr ??
+          (error instanceof Error ? error.message : "Unknown local error"),
+      ).slice(0, 4000),
+    }),
   );
   process.exitCode = 1;
 });
